@@ -1,0 +1,23 @@
+{
+  "name": "step-1-data-crawl",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "bootstrap": "node src/commands/bootstrap/index.ts",
+    "bootstrap-prescription": "node src/commands/bootstrap-prescription/index.ts",
+    "crawl-details": "node src/commands/crawl-details/index.ts",
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "26.4.1",
+    "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "crawlee": "^3.18.2",
+    "mongodb": "^7.7.0",
+    "playwright": "^1.64.0"
+  }
+}

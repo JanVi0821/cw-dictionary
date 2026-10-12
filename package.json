@@ -2,6 +2,10 @@
   "name": "cw-dictionary",
   "private": true,
   "scripts": {
+    "bootstrap": "pnpm --filter step-1-data-crawl bootstrap",
+    "bootstrap-prescription": "pnpm --filter step-1-data-crawl bootstrap-prescription",
+    "crawl-details": "pnpm --filter step-1-data-crawl crawl-details",
+    "translate": "pnpm --filter step-2-data-translation translate",
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",

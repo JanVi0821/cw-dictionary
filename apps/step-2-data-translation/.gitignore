@@ -1,0 +1,4 @@
+storage/
+*.tsbuildinfo
+deep-api-keys.ts
+.deep-api-keys.*.tmp

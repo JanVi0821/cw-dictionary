@@ -1,0 +1,5 @@
+storage
+
+# 详情采集的本地面包屑关系缓存
+src/commands/crawl-details/breadcrumb-paths.json
+src/commands/crawl-details/breadcrumb-paths.json.tmp
