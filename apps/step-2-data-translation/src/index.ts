@@ -2,10 +2,16 @@ import { randomUUID } from "node:crypto";
 import { parseArgs } from "node:util";
 import { MongoClient } from "mongodb";
 import {
+  API_REQUEST_INTERVAL_MS,
+  CUSTOM_INSTRUCTIONS,
   CONCURRENCY,
   DATABASE,
   LIMIT,
+  LANG,
   REDIS_NAMESPACE,
+  REQUEST_TIMEOUT_MS,
+  RETRY_DELAYS_MS,
+  SOURCE_LANG,
   SOURCE_COLLECTION,
   TARGET_COLLECTION,
 } from "./config.ts";
@@ -85,7 +91,14 @@ Redis 必须可连接，同一项目只允许一个命令实例，实例内部�
       if (fatal) throw fatal;
     };
     const keyPool = await createDeeplKeyPool();
-    const translator = createDeeplTranslator(keyPool, assertRunning);
+    const translator = createDeeplTranslator(keyPool, assertRunning, {
+      sourceLang: SOURCE_LANG,
+      targetLang: LANG,
+      customInstructions: CUSTOM_INSTRUCTIONS,
+      requestIntervalMs: API_REQUEST_INTERVAL_MS,
+      requestTimeoutMs: REQUEST_TIMEOUT_MS,
+      retryDelaysMs: RETRY_DELAYS_MS,
+    });
     const cached = createCachedTranslator(translator, redis, assertRunning);
     await client.connect();
     const db = client.db(DATABASE);

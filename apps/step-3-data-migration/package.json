@@ -1,0 +1,23 @@
+{
+  "name": "step-3-data-migration",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate-schema": "node src/commands/generate-schema.ts",
+    "migrate:products": "node --env-file=.env src/commands/migrate-products.ts",
+    "migrate:product-translations": "node --env-file=.env src/commands/migrate-product-translations.ts",
+    "migrate:collections": "node --env-file=.env src/commands/migrate-collections.ts",
+    "migrate:collection-translations": "node --env-file=.env src/commands/migrate-collection-translations.ts",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/server": "1.9.2",
+    "mongodb": "7.7.0"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "26.4.1",
+    "typescript": "7.0.2"
+  }
+}

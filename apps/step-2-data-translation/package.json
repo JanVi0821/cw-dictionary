@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "translate": "node --env-file=.env src/index.ts",
+    "translate-collections": "node --env-file=.env src/commands/translate-collections/index.ts",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {

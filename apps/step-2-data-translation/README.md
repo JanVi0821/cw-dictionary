@@ -125,3 +125,19 @@ Ctrl+C/SIGTERM 停止领取新任务，等待正在处理的商品结束；强�
 | `src/redis.ts`   | Redis 连接、令牌锁及自动续期                      |
 | `src/tasks.ts`   | 待办入队、断点恢复和原子领取                      |
 | `src/types.ts`   | 翻译协议和完成元数据                              |
+
+## 分类名称翻译（独立命令）
+
+```bash
+# 默认顺序处理全部未完成分类，也可在 config.ts 配置 LIMIT
+pnpm translate-collections
+pnpm translate-collections --limit=10
+```
+
+入口为 `src/commands/translate-collections/index.ts`，独立配置在同目录的 `config.ts`。源集合为 `cw_data.collection_raw`，目标集合为 `cw_data.collection_raw_translated`。复制源记录的 `_id`、`collection_id`、`parent_id` 及其他字段，仅翻译 `name`，额外记录 translation 完成状态、原始名称、语言、版本及完成时间。源集合不修改。
+
+分类使用专用 `custom_instructions`，要求简洁自然的简体中文导航标签、标准药品/营养/美妆术语、保留品牌名且不追加解释。每条 context 包含当前英文名称、从根到直接父级的真实分类路径，以及最多 8 个直接子分类名称；不使用商品属性或继承的大分类。缺失父级或父级循环会报错，不推测层级。
+
+单线程顺序处理，**不使用 Redis 或本地翻译缓存**，不使用商品翻译的 pending 队列。每次执行读取目标中已完成的 collection_id 并跳过，因此错误/超时/额度耗尽后重跑会处理未完成项，也不会遗漏较小 ID 的分类。成功结果与完成标记在一次 MongoDB 写入中保存；修改指令或源名称不会自动重译已完成项。SIGINT/SIGTERM 会等待当前分类完成后退出；强制 kill 若发生在 API 成功但写库之前，该分类下次会重新调用 API。
+
+公共 DeepL 模块仅复用请求、重试和 456 key 轮换能力，分类指令与商品指令独立配置。Redis **仅用于运行锁**：因两个命令共用可更新的 API key 文件，分类命令与商品命令不能同时运行。分类命令不读写商品缓存；需要 MONGODB_URI 和可连接的 Redis（REDIS_URL），使用现有环境配置。
