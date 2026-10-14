@@ -1,0 +1,47 @@
+{
+  "Metadata": {
+    "title": "CW 词典",
+    "description": "浏览 Chemist Warehouse 商品及中文翻译。"
+  },
+  "Brand": {
+    "name": "CW 词典"
+  },
+  "Navigation": {
+    "search": "搜索",
+    "explore": "探索",
+    "settings": "设置"
+  },
+  "Language": {
+    "label": "语言",
+    "english": "English",
+    "simplifiedChinese": "简体中文"
+  },
+  "Settings": {
+    "title": "设置",
+    "languageTitle": "语言",
+    "languageDescription": "更改应用界面语言。",
+    "placeholder": "更多设置稍后加入。"
+  },
+  "Home": {
+    "heading": "Chemist Warehouse 词典",
+    "description": "搜索商品，浏览分类。",
+    "searchPlaceholder": "搜索商品和分类",
+    "searchSubmit": "搜索",
+    "searchFailed": "搜索失败，请稍后重试。",
+    "queryTooShort": "请至少输入 2 个字符。",
+    "collectionsHeading": "分类",
+    "collectionsEmpty": "没有匹配的分类。",
+    "productsHeading": "商品",
+    "productsEmpty": "没有匹配的商品。"
+  },
+  "Explore": {
+    "title": "探索",
+    "empty": "暂无分类。",
+    "loadFailed": "分类加载失败，请稍后重试。",
+    "expand": "展开子分类",
+    "loading": "加载中…"
+  },
+  "Collection": {
+    "productsEmpty": "该分类下暂无商品。"
+  }
+}

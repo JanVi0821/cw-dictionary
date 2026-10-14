@@ -1,0 +1,129 @@
+@theme {
+  --color-brand-red: #e31837;
+  --color-brand-ink: #111111;
+
+  --color-background: #fffafa;
+  --color-foreground: #171717;
+  --color-foreground-muted: #5c5c5c;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f5f5f5;
+  --color-border: #e5e5e5;
+
+  --color-primary: #e31837;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #111111;
+  --color-accent-foreground: #ffffff;
+
+  --color-danger: #b42318;
+  --color-danger-background: #fff1f0;
+  --color-danger-foreground: #7a271a;
+  --color-warning: #a15c00;
+  --color-warning-background: #fff6d6;
+  --color-warning-foreground: #5f3b00;
+  --color-success: #147a4d;
+  --color-success-background: #e7f7ed;
+  --color-success-foreground: #075232;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+
+  --text-display: clamp(2rem, 7vw, 3.25rem);
+  --text-display--line-height: 1.1;
+  --text-heading: clamp(1.5rem, 4vw, 2rem);
+  --text-heading--line-height: 1.2;
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-label: 0.875rem;
+  --text-label--line-height: 1.25;
+  --text-bottom-nav: 0.75rem;
+  --text-bottom-nav--line-height: 1.15;
+
+  --radius-page: 1.5rem;
+  --radius-surface: 1rem;
+  --radius-control: 0.875rem;
+  --radius-pill: 999px;
+
+  --spacing-page-x: clamp(1rem, 5vw, 2rem);
+  --spacing-section: clamp(1rem, 4vw, 2.5rem);
+  --spacing-touch: 3rem;
+  --spacing-control-gap: 0.5rem;
+  --spacing-control-x: 1rem;
+  --spacing-copy-gap: 1rem;
+  --spacing-header: 5rem;
+  --spacing-bottom-nav-y: 0.25rem;
+  --spacing-bottom-nav-gap: 0.125rem;
+  --spacing-bottom-nav-icon: 1.25rem;
+  --spacing-bottom-nav: calc(
+    var(--spacing-touch) + var(--spacing-bottom-nav-y) +
+      max(var(--spacing-bottom-nav-y), env(safe-area-inset-bottom, 0px)) + 1px
+  );
+  --spacing-logo: 2.5rem;
+  --spacing-logo-mobile: 2rem;
+  --spacing-nav-icon: 1.5rem;
+  --spacing-nav-icon-mobile: 1.25rem;
+  --spacing-home: calc(100svh - var(--spacing-header));
+  --spacing-focus-ring: 0.125rem;
+  --spacing-focus-offset: 0.1rem;
+
+  --container-content: 72rem;
+  --container-reading: 48rem;
+
+  --shadow-control: 0 1px 2px rgb(17 17 17 / 0.08), 0 1px 1px rgb(17 17 17 / 0.06);
+  --shadow-raised: 0 14px 32px rgb(17 17 17 / 0.1), 0 4px 10px rgb(17 17 17 / 0.06);
+
+  --ease-page: cubic-bezier(0.2, 0, 0, 1);
+  --duration-short: 120ms;
+  --duration-base: 180ms;
+}
+
+@theme inline {
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-destructive: var(--destructive);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #171717;
+  --muted: #f5f5f5;
+  --muted-foreground: #5c5c5c;
+  --destructive: #b42318;
+  --input: #e5e5e5;
+  --ring: #e31837;
+  --radius: 0.875rem;
+  --sidebar: #fffafa;
+  --sidebar-foreground: #171717;
+  --sidebar-primary: #e31837;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #e31837;
+}

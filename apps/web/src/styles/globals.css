@@ -1,0 +1,41 @@
+@import "tailwindcss";
+@import "./theme.css";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+    @apply outline-ring/50;
+  }
+
+  html {
+    font-family: var(--font-sans);
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+}
+
+@layer components {
+  .focus-ring:focus-visible {
+    outline: var(--spacing-focus-ring) solid var(--color-primary);
+    outline-offset: var(--spacing-focus-offset);
+  }
+
+  .mobile-bottom-nav {
+    padding-bottom: max(var(--spacing-bottom-nav-y), env(safe-area-inset-bottom));
+  }
+
+  .surface {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-surface);
+    background: var(--color-surface);
+  }
+}

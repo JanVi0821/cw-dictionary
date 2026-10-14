@@ -1,0 +1,47 @@
+{
+  "Metadata": {
+    "title": "CW Dictionary",
+    "description": "Browse Chemist Warehouse products and Chinese translations."
+  },
+  "Brand": {
+    "name": "CW Dictionary"
+  },
+  "Navigation": {
+    "search": "Search",
+    "explore": "Explore",
+    "settings": "Settings"
+  },
+  "Language": {
+    "label": "Language",
+    "english": "English",
+    "simplifiedChinese": "简体中文"
+  },
+  "Settings": {
+    "title": "Settings",
+    "languageTitle": "Language",
+    "languageDescription": "Choose the language used across the app.",
+    "placeholder": "More settings will be added later."
+  },
+  "Home": {
+    "heading": "Chemist Warehouse dictionary",
+    "description": "Search products and browse collections.",
+    "searchPlaceholder": "Search products and collections",
+    "searchSubmit": "Search",
+    "searchFailed": "Couldn't search right now. Please try again.",
+    "queryTooShort": "Enter at least 2 characters.",
+    "collectionsHeading": "Collections",
+    "collectionsEmpty": "No matching collections.",
+    "productsHeading": "Products",
+    "productsEmpty": "No matching products."
+  },
+  "Explore": {
+    "title": "Explore",
+    "empty": "No collections yet.",
+    "loadFailed": "Couldn't load collections. Please try again.",
+    "expand": "Show subcollections",
+    "loading": "Loading…"
+  },
+  "Collection": {
+    "productsEmpty": "No products in this collection."
+  }
+}

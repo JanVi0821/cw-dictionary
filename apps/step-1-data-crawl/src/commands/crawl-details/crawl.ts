@@ -23,6 +23,7 @@ import {
 export type RawProduct = {
   sid: string;
   list_category_ids?: (string | number)[];
+  category_ids?: (string | number)[];
   fetched_at?: string | null;
 };
 const errorFile = new URL(
@@ -212,11 +213,11 @@ export async function crawlDetails(
           // 只有分类写入成功（或已确认此前存在）才加入 Set，失败不会污染缓存。
           breadcrumbPaths.add(breadcrumbKey);
 
-          // 8. 分类处理结束后，在商品入库前重读 list_category_ids 作为 ID 兜底。
+          // 8. 分类处理结束后，重读列表分类和已补全分类；仅用于商品 ID 合并。
           // 只合并商品 category_ids，不参与缓存键、分类名称、父级检查或分类表写入。
           const latest = await products.findOne(
             { _id: record._id },
-            { projection: { list_category_ids: 1 } },
+            { projection: { list_category_ids: 1, category_ids: 1 } },
           );
           if (!latest) throw new Error(`Product disappeared: ${record.sid}`);
           if (
@@ -226,8 +227,16 @@ export async function crawlDetails(
             throw new Error(`Invalid list_category_ids: ${record.sid}`);
           }
           const inherited = (latest.list_category_ids ?? []).map(collectionId);
+          if (
+            latest.category_ids !== undefined &&
+            !Array.isArray(latest.category_ids)
+          )
+            throw new Error(`Invalid category_ids: ${record.sid}`);
+          const existingCategories = (latest.category_ids ?? []).map(
+            collectionId,
+          );
           parsed.product.category_ids = [
-            ...new Set([...breadcrumbIds, ...inherited]),
+            ...new Set([...breadcrumbIds, ...inherited, ...existingCategories]),
           ];
 
           // 9. 更新商品详情与完成时间，保留原 list_category_ids，不替换整份文档。
@@ -242,7 +251,7 @@ export async function crawlDetails(
               { $literal: value },
             ]),
           );
-          // 原子合并写入时最新的列表分类，避免 bootstrap 在上方读取后补丁被覆盖。
+          // 原子合并写入时最新的列表和已补全分类，避免其他采集补丁被覆盖。
           // breadcrumbs 保持在前，继承 ID 转为数字并按首次出现顺序去重。
           updates.category_ids = {
             $reduce: {
@@ -252,6 +261,13 @@ export async function crawlDetails(
                   {
                     $map: {
                       input: { $ifNull: ["$list_category_ids", []] },
+                      as: "category",
+                      in: { $toInt: "$$category" },
+                    },
+                  },
+                  {
+                    $map: {
+                      input: { $ifNull: ["$category_ids", []] },
                       as: "category",
                       in: { $toInt: "$$category" },
                     },

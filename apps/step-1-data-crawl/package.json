@@ -7,6 +7,8 @@
     "bootstrap": "node src/commands/bootstrap/index.ts",
     "bootstrap-prescription": "node src/commands/bootstrap-prescription/index.ts",
     "crawl-details": "node src/commands/crawl-details/index.ts",
+    "export-collection-tree": "node src/commands/export-collection-tree/index.ts",
+    "complete-product-collections": "node src/commands/complete-product-collections/index.ts",
     "check-types": "tsc --noEmit"
   },
   "devDependencies": {
