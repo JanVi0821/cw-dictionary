@@ -84,6 +84,8 @@ export function prepareTranslation(row: ProductDocument) {
   const { _id, ...data } = row;
   const copy = { ...structuredClone(data), _id } as ProductDocument;
   delete copy.translation;
+  // Filter 任务完成标记仅属于原表任务状态，不复制到翻译结果。
+  delete copy.translation_flags;
   if (isObject(copy.info))
     for (const key of EXCLUDED_INFO_KEYS) delete copy.info[key];
 

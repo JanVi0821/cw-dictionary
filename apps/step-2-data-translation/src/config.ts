@@ -1,3 +1,6 @@
+import type { Filter } from "mongodb";
+import type { ProductDocument } from "./types.ts";
+
 /** 数据库名称显式指定；MongoDB URI 负责连接，集合名称不从 URI 路径解析。 */
 export const DATABASE = "cw_data";
 export const SOURCE_COLLECTION = "data_raw";
@@ -28,12 +31,18 @@ export const PROVIDER = "deepl";
 /** 翻译策略版本，用于记录元数据和区分缓存文件；不触发默认续跑重译。 */
 export const VERSION = 2;
 
-/** 本次最多翻译的后续商品数；指定 sid 时跳过的已完成商品不计入。Infinity 表示全部。 */
+/** 所有 worker 合计最多完成的商品数；跳过已完成商品不计数。Infinity 表示全部。 */
 export const LIMIT = 10000;
 export const BATCH_SIZE = 100;
 /** API 网络任务使用异步 worker 并发；每个商品内的字段仍按顺序翻译。 */
 export const CONCURRENCY = 2;
 export const TASK_COLLECTION = "translation_pending";
+export const FILTER_TASK_COLLECTION = "translation_filter_pending";
+export const PROGRESS_COLLECTION = "translation_progress";
+/** Filter 模式筛选原表；空对象表示所有已完成详情的商品。 */
+export const TRANSLATION_FILTER: Filter<ProductDocument> = {};
+/** 原表 translation_flags 下的完成标记；更换常量值即开启新一轮 filter 重译。 */
+export const FILTER_COMPLETION_FLAG = "products_v1";
 export const REDIS_NAMESPACE = "cw:translation";
 export const REDIS_LOCK_TTL_MS = 60_000;
 export const CACHE_LOCK_WAIT_MS = 300_000;

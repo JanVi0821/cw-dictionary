@@ -8,6 +8,7 @@
     "export-collection-tree": "pnpm --filter step-1-data-crawl export-collection-tree",
     "complete-product-collections": "pnpm --filter step-1-data-crawl complete-product-collections",
     "translate": "pnpm --filter step-2-data-translation translate",
+    "translate-filter": "pnpm --filter step-2-data-translation translate-filter",
     "translate-collections": "pnpm --filter step-2-data-translation translate-collections",
     "generate-schema": "pnpm --filter step-3-data-migration generate-schema",
     "migrate:products": "pnpm --filter step-3-data-migration migrate:products",

@@ -22,9 +22,12 @@ import {
 
 export type RawProduct = {
   sid: string;
+  name?: string;
   list_category_ids?: (string | number)[];
   category_ids?: (string | number)[];
   fetched_at?: string | null;
+  images?: string[];
+  isPrescription?: boolean;
 };
 const errorFile = new URL(
   "../../../storage/detail-crawl-errors.jsonl",
@@ -127,11 +130,14 @@ export async function crawlDetails(
     }),
   );
 
-  // 4. 默认只读尚未完成详情的商品；--refresh 可重新处理已有详情。
+  // 4. MongoDB 的 null 查询同时匹配字段缺失，自动包含仅 sid/name/category_ids 的增量商品。
+  // 不要求 bootstrap 专属的 list_category_ids 或 price；--refresh 才重抓已完成详情。
   // fetched_at 仅在两表写入流程成功后保存，因此无需另建成功进度集合。
   const filter = refresh ? {} : { fetched_at: null };
   const cursor = products
-    .find(filter, { projection: { sid: 1 } })
+    .find(filter, {
+      projection: { sid: 1, category_ids: 1, list_category_ids: 1 },
+    })
     .sort({ sid: 1 })
     .limit(LIMIT);
   let attempted = 0;
@@ -147,6 +153,21 @@ export async function crawlDetails(
           // 5. 请求商品 HTML 并完成全部解析，解析失败不写入任何本次商品详情。
           if (typeof record.sid !== "string" || !/^\d+$/.test(record.sid))
             throw new Error("Invalid product sid");
+          // 列表分类字段均可缺失；若存在则先验证，避免完成网络请求后才发现输入错误。
+          if (
+            record.list_category_ids !== undefined &&
+            !Array.isArray(record.list_category_ids)
+          )
+            throw new Error(`Invalid list_category_ids: ${record.sid}`);
+          if (
+            record.category_ids !== undefined &&
+            !Array.isArray(record.category_ids)
+          )
+            throw new Error(`Invalid category_ids: ${record.sid}`);
+          const inherited = (record.list_category_ids ?? []).map(collectionId);
+          const existingCategories = (record.category_ids ?? []).map(
+            collectionId,
+          );
           const page = await fetchProduct(record.sid);
           const parsed = parseDetail(page.html, page.url, record.sid);
           // 缓存键只取原始 breadcrumbs，与 list_category_ids 无关。
@@ -213,28 +234,8 @@ export async function crawlDetails(
           // 只有分类写入成功（或已确认此前存在）才加入 Set，失败不会污染缓存。
           breadcrumbPaths.add(breadcrumbKey);
 
-          // 8. 分类处理结束后，重读列表分类和已补全分类；仅用于商品 ID 合并。
-          // 只合并商品 category_ids，不参与缓存键、分类名称、父级检查或分类表写入。
-          const latest = await products.findOne(
-            { _id: record._id },
-            { projection: { list_category_ids: 1, category_ids: 1 } },
-          );
-          if (!latest) throw new Error(`Product disappeared: ${record.sid}`);
-          if (
-            latest.list_category_ids !== undefined &&
-            !Array.isArray(latest.list_category_ids)
-          ) {
-            throw new Error(`Invalid list_category_ids: ${record.sid}`);
-          }
-          const inherited = (latest.list_category_ids ?? []).map(collectionId);
-          if (
-            latest.category_ids !== undefined &&
-            !Array.isArray(latest.category_ids)
-          )
-            throw new Error(`Invalid category_ids: ${record.sid}`);
-          const existingCategories = (latest.category_ids ?? []).map(
-            collectionId,
-          );
+          // 8. 这些 ID 仅用于商品字段合并，不参与分类父子关系或面包屑缓存。
+          // 这里形成解析快照，实际写入时仍以数据库中的最新数组为准。
           parsed.product.category_ids = [
             ...new Set([...breadcrumbIds, ...inherited, ...existingCategories]),
           ];
@@ -242,7 +243,7 @@ export async function crawlDetails(
           // 9. 更新商品详情与完成时间，保留原 list_category_ids，不替换整份文档。
           // 分类先成功、商品后失败时，重试可通过 Set 跳过已完成的分类链。
           const { sid, images, ...fields } = parsed.product;
-          // 处方药列表负责 images 和 isPrescription；详情更新不修改其标记。
+          // 保留已有处方药标记；增量商品没有列表标记时，由详情页识别后补齐。
           // 用原子更新管道按数据库当前标记保留图片，避免并行补丁期间读写竞态。
           // 其余字段包裹 $literal，防止富文本、名称或特征中的 $ 被解释为表达式。
           const updates: Record<string, unknown> = Object.fromEntries(
@@ -286,20 +287,38 @@ export async function crawlDetails(
           };
           updates.images = {
             $cond: [
-              { $eq: ["$isPrescription", true] },
-              "$images",
+              {
+                $or: [
+                  { $eq: ["$isPrescription", true] },
+                  { $literal: parsed.isPrescription },
+                ],
+              },
+              { $ifNull: ["$images", []] },
               { $literal: images },
             ],
           };
-          const result = await products.updateOne({ _id: record._id, sid }, [
-            { $set: updates },
-          ]);
-          if (result.matchedCount !== 1)
-            throw new Error(`Product update did not match: ${sid}`);
+          if (parsed.isPrescription)
+            updates.isPrescription = {
+              $cond: [
+                { $eq: [{ $type: "$isPrescription" }, "missing"] },
+                true,
+                "$isPrescription",
+              ],
+            };
+          // 更新并返回实际分类，省去另一次查询；已有详情标记和全部补齐字段同次提交。
+          const saved = await products.findOneAndUpdate(
+            { _id: record._id, sid },
+            [{ $set: updates }],
+            {
+              returnDocument: "after",
+              projection: { sid: 1, category_ids: 1 },
+            },
+          );
+          if (!saved) throw new Error(`Product update did not match: ${sid}`);
           succeeded++;
           complete = true;
           console.log(
-            `[${attempted}/${LIMIT}] sid=${sid} 完成，collections=${fields.category_ids.join(",")}`,
+            `[${attempted}/${LIMIT}] sid=${sid} 完成，collections=${saved.category_ids!.join(",")}`,
           );
           break;
         } catch (error) {

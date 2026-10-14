@@ -16,6 +16,8 @@ async function main(): Promise<void> {
     console.log(`Usage: pnpm crawl-details [--refresh]
 
 默认处理未完成详情的商品，本次最多尝试 ${LIMIT} 个。
+支持 complete-product-collections 新增的 sid/name/category_ids 三字段商品。
+自动补齐详情和价格，保留并合并已有分类；成功写入 fetched_at 后默认跳过。
 数量配置：src/commands/crawl-details/config.ts -> LIMIT
 --refresh  重新采集已有详情的商品（仍受 LIMIT 限制）
 --help     显示帮助，不连接数据库

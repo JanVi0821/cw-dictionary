@@ -1,6 +1,6 @@
 # 商品数据 Bootstrap
 
-处方药 SSR 列表使用独立命令 `pnpm bootstrap-prescription`，配置在 `src/commands/bootstrap-prescription/config.ts`。支持 `--max-pages=1` 限页及 `--fresh` 重扫，默认断点续跑。名称包含 Blackmores 的广告商品会被排除，其余商品按 sid 仅在原 `images` 缺失、为 null 或空数组时补充有效图片，并补充 `isPrescription: true`。NoImage 占位图不会采集。详情采集会保留这些商品的图片及标记。详见 [处方药列表规范](.spec/prescription-list-crawl-spec.md)。
+处方药 SSR 列表使用独立命令 `pnpm bootstrap-prescription`，配置在 `src/commands/(2)bootstrap-prescription/config.ts`。支持 `--max-pages=1` 限页及 `--fresh` 重扫，默认断点续跑。名称包含 Blackmores 的广告商品会被排除，其余商品按 sid 仅在原 `images` 缺失、为 null 或空数组时补充有效图片，并补充 `isPrescription: true`。NoImage 占位图不会采集。详情采集会保留这些商品的图片及标记。详见 [处方药列表规范](.spec/prescription-list-crawl-spec.md)。
 
 读取 `src/const/crawl_sites.ts` 中的五个大分类，分页请求列表 API，写入本地 MongoDB 的 `cw_data.data_raw`。不请求商品详情页。
 
@@ -8,7 +8,7 @@
 
 需要 Node.js 24+、项目依赖和本地 MongoDB。默认连接 `mongodb://127.0.0.1:27017`。
 
-采集逻辑独立放在 `src/commands/bootstrap/`：`index.ts` 为命令入口，`api.ts` 解析接口，`crawl.ts` 负责分页、写库和断点恢复。
+采集逻辑独立放在 `src/commands/(1)bootstrap/`：`index.ts` 为命令入口，`api.ts` 解析接口，`crawl.ts` 负责分页、写库和断点恢复。
 
 在仓库根目录或当前应用目录执行：
 
@@ -69,7 +69,7 @@ pnpm exec tsc --noEmit
 
 ## 商品详情采集
 
-独立命令 `pnpm crawl-details`，数量由 [config.ts](src/commands/crawl-details/config.ts) 的 `LIMIT` 控制，当前最多尝试 1000 个商品。默认跳过已有 `fetched_at` 的商品；`--refresh` 可刷新已有详情，仍受 LIMIT 限制。
+独立命令 `pnpm crawl-details`，数量由 [config.ts](src/commands/crawl-details/config.ts) 的 `LIMIT` 控制，最多尝试数量以 config.ts 的 LIMIT 为准。默认跳过已有 `fetched_at` 的商品；`--refresh` 可刷新已有详情，仍受 LIMIT 限制。
 
 每个商品先 upsert `cw_data.collection_raw`（`collection_id` 唯一、`name` 为名称、`parent_id` 为父分类，根分类为 null），再更新 `cw_data.data_raw` 的详情和完成时间。商品 `category_ids` 为数字数组，包含面包屑分类及继承的 `list_category_ids`。
 
@@ -84,7 +84,7 @@ pnpm export-collection-tree
 pnpm export-collection-tree --help
 ```
 
-独立命令位于 `src/commands/export-collection-tree/`，配置位于同目录的 `config.ts`。只读查询 `cw_data.collection_raw`，依据实际 `parent_id` 生成森林，不依赖预设大分类、商品面包屑缓存或 `list_category_ids`。
+独立命令位于 `src/commands/(3)export-collection-tree/`，配置位于同目录的 `config.ts`。只读查询 `cw_data.collection_raw`，依据实际 `parent_id` 生成森林，不依赖预设大分类、商品面包屑缓存或 `list_category_ids`。
 
 输出到本应用的 `storage/collection-tree/`，从仓库根目录执行时路径也不变：
 
@@ -122,7 +122,7 @@ pnpm complete-product-collections --max-pages=2
 pnpm complete-product-collections --fresh
 ```
 
-命令独立位于 `src/commands/complete-product-collections/`，配置在该目录的 `config.ts`。读取 `storage/collection-tree/leaves.json`，逐个叶子遍历其商品列表：普通分类复用 bootstrap 的搜索 API，使用叶子 collection_id 查询，按 packageid 升序、每页 48 条；处方药分类 261 复用现有 SSR 分页解析器，每页 24 条，并沿用排除 Blackmores 广告的规则。
+命令独立位于 `src/commands/(4)complete-product-collections/`，配置在该目录的 `config.ts`。读取 `storage/collection-tree/leaves.json`，逐个叶子遍历其商品列表：普通分类复用 bootstrap 的搜索 API，使用叶子 collection_id 查询，按 packageid 升序、每页 48 条；处方药分类 261 复用现有 SSR 分页解析器，每页 24 条，并沿用排除 Blackmores 广告的规则。
 
 每页为每个商品生成一次 updateOne，批量写入 `cw_data.data_raw`：
 
@@ -140,3 +140,17 @@ pnpm complete-product-collections --fresh
 叶子 ID/路径及顺序写入 checkpoint 的输入 hash，输入改变后须使用 --fresh；仅名称变化不影响续跑。全部完成后重复执行直接退出，须 --fresh 才会重新扫描。SIGINT/SIGTERM 等当前页写入和进度保存后停止；强制退出时，最多重新处理未确认保存进度的当前页。
 
 仅支持单实例运行；连接读取进程 MONGODB_URI，缺失时使用本地 MongoDB，不自动加载 `.env`。首次运行前必须导出叶子文件。MAX_PAGES 可在 config.ts 配置，Infinity 表示全部。
+
+## 补抓分类补全阶段新增的商品详情
+
+```sh
+pnpm crawl-details
+```
+
+默认通过 fetched_at 为 null（同时匹配字段缺失）选取尚未完成的商品，支持仅含 sid、name、category_ids 的增量记录，不要求 list_category_ids、price、images 或 isPrescription 预先存在。已完成商品默认跳过；失败商品不写完成标记，下次执行可重试。--refresh 用于明确重抓全部已有详情。
+
+抓取详情后补齐官网名称、价格、图片、供应商、商品编号、信息 section、特征和关联商品。category_ids 在写库时原子合并官网 breadcrumbs、可选 list_category_ids 和数据库已有 category_ids，保留叶子分类补全的全部 ID；分类父子关系仍仅依据页面 breadcrumbs。成功日志输出实际写入的分类数组。
+
+新商品如果由详情页面识别为处方药，会在原标记缺失时补写 isPrescription=true；已有标记不覆盖。处方药保留已有图片，图片缺失时写入 []，详情页不推测处方药图片。
+
+所有详情字段与 fetched_at 同次写入；不更新翻译表或 Supabase。数量与重试参数继续由 src/commands/crawl-details/config.ts 管理。

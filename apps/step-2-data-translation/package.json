@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "translate": "node --env-file=.env src/index.ts",
+    "translate": "node --env-file=.env src/commands/translate/index.ts",
+    "translate-filter": "node --env-file=.env src/commands/translate-filter/index.ts",
     "translate-collections": "node --env-file=.env src/commands/translate-collections/index.ts",
     "check-types": "tsc --noEmit"
   },

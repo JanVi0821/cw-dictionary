@@ -1,7 +1,7 @@
 import {
   LEAVES_FILE,
   OUTPUT_DIRECTORY,
-} from "../export-collection-tree/config.ts";
+} from "../(3)export-collection-tree/config.ts";
 
 export const DATABASE = "cw_data";
 export const PRODUCT_COLLECTION = "data_raw";

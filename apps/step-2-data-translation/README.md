@@ -1,6 +1,6 @@
 # Chemist Warehouse 商品翻译
 
-仅使用 DeepL，将 `cw_data.data_raw` 的英文商品翻译为简体中文，完整结果写入 `cw_data.data_raw_translated`。源集合不修改。参考 grocery-dictionary 的 DeepL、字段级重试、商品内缓存实现，跨商品缓存已改为 Redis，没有接入其他供应商。
+仅使用 DeepL，将 `cw_data.data_raw` 的英文商品翻译为简体中文，完整结果写入 `cw_data.data_raw_translated`。普通续跑不修改源集合；filter 模式只在原表增加配置指定的完成标记。参考 grocery-dictionary 的 DeepL、字段级重试、商品内缓存实现，跨商品缓存已改为 Redis，没有接入其他供应商。
 
 ## 字段分析与配置
 
@@ -19,7 +19,7 @@
 
 `feature_attributes` 使用 `{label,value}[]`，既有 Size、Suitable For 等常见标签，也有整句描述，因此不限定标签枚举。逐项翻译 label 和 value，保留条目顺序及 value 的字符串/字符串数组类型。译后 label 重名也保留为独立条目，不覆盖或合并。data_raw 保留英文，data_raw_translated 保存译文。
 
-2026-10-12 已将两个集合的历史对象格式转换为数组：data_raw 19,349 条，data_raw_translated 1 条；空对象转换为 []，其他字段原样保留。当时全量检查确认均符合 `{label,value}[]`，一次性迁移脚本及命令已删除。采集脚本也已输出新格式。结构和翻译配置变化仅记录到新结果的 hash，不影响默认续跑；重译旧结果需指定 --sid 和 --force，Redis 短文本缓存仍可复用。
+2026-10-12 已将两个集合的历史对象格式转换为数组：data_raw 19,349 条，data_raw_translated 1 条；空对象转换为 []，其他字段原样保留。当时全量检查确认均符合 `{label,value}[]`，一次性迁移脚本及命令已删除。采集脚本也已输出新格式。结构和翻译配置变化仅记录到新结果的 hash，不影响默认续跑；重译旧结果使用独立 translate-filter 命令，Redis 短文本缓存仍可复用。
 
 以下字段原值复制，不调用翻译：`supplier`（供应商专名）、`_id`、`sid`、`product_id`、`category_ids`、`list_category_ids`、`related_sids`、`images`、`price`、`fetched_at`、`isPrescription`，以及未列入配置的其他字段。General Information 的富文本仍整体保留，翻译特征不会从正文删除任何内容。
 
@@ -40,9 +40,9 @@ MongoDB URI 的路径只应包含数据库名，不应追加 collection。脚本
 
 ```sh
 pnpm translate --limit=10 --concurrency=4
-pnpm translate --sid=43194
+pnpm translate-filter --limit=10
 pnpm translate --limit=all
-pnpm translate --sid=43194 --force
+pnpm translate-filter --help
 pnpm translate --help
 ```
 
@@ -50,7 +50,7 @@ pnpm translate --help
 
 ## API key 轮换
 
-密钥改从 `src/deep-api-keys.ts` 的 `DEEPL_API_KEYS` 数组读取，始终使用第一项，不读取 env 的 DEEPL_API_KEY。真实密钥文件已被 Git 忽略，首次配置可复制 `src/deep-api-keys.example.ts` 并填写字符串数组。
+密钥改从 `src/deepl-api-keys/deep-api-keys.ts` 的 `DEEPL_API_KEYS` 数组读取，始终使用第一项，不读取 env 的 DEEPL_API_KEY。真实密钥文件已被 Git 忽略，首次配置可复制 `src/deepl-api-keys/deep-api-keys.example.ts` 并填写字符串数组。
 
 遇到 HTTP 456 时，先将当前 key 从 DEEPL_API_KEYS 删除、去重追加到 usedKeys，使用临时文件和 rename 原子写回原文件，再用新的第一项重试同一字段。写回文件可能规范化格式，保留的是两个数组内容。轮换不消耗普通重试次数，也不重新翻译当前商品此前成功的字段。每次请求重新选择 Free/Pro 域名；日志只输出剩余和已使用数量，不输出密钥。
 
@@ -78,13 +78,13 @@ Key features: Helps maintain skin hydration
 
 前缀由 `CATEGORY_CONTEXT_PREFIX` 配置，背景属性由 `CONTEXT_PRODUCT_FIELDS` 配置。`CONTEXT_MAX_CHARS=6000` 只截断过长背景，不截断实际翻译正文。分类名称列表不是父子路径，不将兜底继承分类误当作 breadcrumbs 链；不修改 collection_raw。缺少 category_ids 或找不到分类名称会停止当前任务，不在缺失上下文时静默翻译。row_started 日志输出实际 context，方便检查。
 
-同时发送 config.ts 中的 CUSTOM_INSTRUCTIONS：营养、药品及美容成分采用标准简体中文术语（包括产品标题和引用的产品名），保留制造商与品牌专名，剂量及原文含义保持忠实。不包含针对特定商品或品牌的术语映射。指令配置记录在 recipe_hash，背景记录在 context_hash，均不参与默认续跑判断。修改指令或上下文后可用 --sid 和 --force 显式重译；原文缓存仍可能命中旧译文，需按需清理缓存。分类表启动后发生的变化会在下次启动时读取。
+同时发送 config.ts 中的 CUSTOM_INSTRUCTIONS：营养、药品及美容成分采用标准简体中文术语（包括产品标题和引用的产品名），保留制造商与品牌专名，剂量及原文含义保持忠实。不包含针对特定商品或品牌的术语映射。指令配置记录在 recipe_hash，背景记录在 context_hash，均不参与默认续跑判断。修改指令或上下文后可用 translate-filter 显式重译；原文缓存仍可能命中旧译文，需按需清理缓存。分类表启动后发生的变化会在下次启动时读取。
 
 ## 并发与任务分配
 
 使用单个 Node.js 进程中的异步 worker 并发处理 API 网络任务，无需为每个商品启动操作系统线程。默认 `CONCURRENCY=4`，可通过 `--concurrency=8` 调整（允许 1–64）；每个商品内部逐字段翻译。`LIMIT` 是所有 worker 合计的本次完成数量，不是每个 worker 的数量。DeepL 请求启动间隔由共享队列统一限速，等待网络响应期间其他请求可以继续。
 
-`cw_data.translation_pending` 是持久待办表，复用原商品 `_id`，入队时即保存 sid、force、generation。worker 使用 findOneAndUpdate 原子设置 owner；其他 worker 不会领取已被占用的同一商品。商品完整翻译并写入目标集合后才删除待办。generation 写入目标的 translation.task_id，因此写商品后、删待办前发生崩溃时，包括强制重译任务在内也不会再次调用翻译。
+`cw_data.translation_pending` 是持久待办表，复用原商品 `_id`，入队时保存 source_id、sid、generation。filter 模式使用独立的 translation_filter_pending，任务 ID 包含完成标记名和源 _id，另存 flag。worker 使用 findOneAndUpdate 原子设置 owner；其他 worker 不会领取已被占用的同一商品。商品完整翻译并写入目标集合后才删除待办。generation 写入目标的 translation.task_id，因此写商品后、删待办前发生崩溃时，包括强制重译任务在内也不会再次调用翻译。
 
 Redis 全局运行锁保护待办恢复和共享 key 文件。一个项目同时只允许一个命令实例，内部 worker 并发；重复启动第二个命令会立即退出。运行锁和缓存文本锁每 20 秒自动续期，TTL 60 秒；释放时校验令牌，不删除其他 owner 的锁。正常退出释放运行锁，强制 kill 后等待旧锁 TTL 到期再启动。Redis 不可用或锁丢失时停止任务，不降级为无锁并发。
 
@@ -102,29 +102,52 @@ Redis 全局运行锁保护待办恢复和共享 key 文件。一个项目同时
 
 ## 写入、续跑与失败
 
-默认先恢复 translation_pending 中未完成的任务，再以目标集合最大 `_id` 为断点，从原表选取 `_id > 断点` 且 fetched_at 非空的详情商品写入待办；目标为空则从头开始。新商品按 ID 升序入队和领取，但并发完成顺序可以不同。本命令已入队的较小 ID 未完成商品始终保留在待办中，不会因较大 ID 先成功而漏掉。原文、上下文或配置变化不触发历史结果自动重译。单次最多按 limit 个新商品入队，未处理的待办会保留到下次。
+### 模式一：普通续跑
 
-`--sid` 定向入队，并只处理该 sid；已有 completed 结果则跳过。`--sid=xxx --force` 定向强制重译；单独 `--force` 从原表开头按 limit 创建强制重译任务。尚未完成的强制重译任务会保留 force 状态供下次续跑。旧商品在引入待办表前就有的空洞、手动删除的历史译文不会自动补齐，可定向处理。单独处理较大 ID 商品仍会推进默认断点，不会自动补建此前从未入队的中间商品。
+`pnpm translate` 先恢复 translation_pending 中未完成的任务，再从普通进度之后选择 fetched_at 非空的详情商品入队。首次使用新版本时，从目标集合最大 `_id` 初始化 `translation_progress` 的 products 记录；之后由此命令维护 last_id。目标为空则从头开始。
+
+任务领取按源 ID 升序，并发完成顺序可以不同。入队在处理前持久化，因此较大 ID 先完成后，较小的未完成任务仍保留在 pending。处理完成或确认目标已完成后推进普通进度；原文和翻译配置变化不会触发历史重译。每次最多按 limit 个新候选入队，所有 worker 合计最多完成 limit 个翻译，其余待办保留下次处理。历史遗漏、被手动删除的旧译文可通过 filter 模式补齐。
+
+### 模式二：Filter 强制重译
+
+`pnpm translate-filter` 使用 [src/config.ts](src/config.ts) 的两个常量：
+
+```ts
+export const TRANSLATION_FILTER: Filter<ProductDocument> = {};
+export const FILTER_COMPLETION_FLAG = "products_v1";
+```
+
+开发人员直接填写原表 MongoDB filter，例如 `{ sid: { $in: ["43194", "140137"] } }` 或 `{ category_ids: 665 }`。默认空对象匹配全部已完成详情的商品，仍受 limit 限制。不再支持旧的定向或强制 CLI 参数。
+
+查询通过 `$and` 同时约束开发者 filter、详情完成条件以及 `translation_flags[标记名] != true`。命中的商品写入独立任务池 translation_filter_pending，即使目标已有 completed 译文，也重新执行翻译并覆盖目标；仍沿用 Redis 缓存，因此不保证每段文本都重新调用 DeepL。
+
+完整译文成功写入后，才将原表 `translation_flags.products_v1` 设置为 true，然后删除待办。中断后同一标记的任务继续执行，已完成标记的商品跳过；译文已写入但标记未写入时，通过目标 translation.task_id 与任务 generation 的对应关系补写完成标记，不重复翻译。原表完成标记不复制进 data_raw_translated。
+
+同一个标记代表一轮重译任务。再次执行相同配置，会恢复该标记的待办并选择当前 filter 新命中的未完成商品。已经入队的待办属于该轮任务快照，即使之后改变 filter，也会继续执行；如需新的筛选任务或再次重译已完成商品，请修改 FILTER_COMPLETION_FLAG（只允许字母、数字、下划线和连字符）。不同标记的待办保留并隔离，切回原标记可以继续之前的任务。
+
+Filter 命令首次运行时会先保存普通续跑起点，此后不会推进普通 last_id，避免定向处理较大 ID 后跳过普通中间商品。两种命令共用全局运行锁，不能同时启动；每个命令内部仍支持并发 worker。
 
 商品全部字段成功才 replaceOne 原子写入 data_raw_translated，复用原 `_id`，sid 有唯一索引。translation 元数据保存 status、lang、provider、version、source_hash、recipe_hash、context_hash、task_id、field_count、completed_at；hash 仅追踪来源，不参与默认续跑判断。
 
 除 HTTP 456 轮换密钥外，其他接口失败等待 4/8/8/16 秒，最多 5 次尝试；每个请求 30 秒超时。首个错误停止所有 worker 领取新任务，未完成任务保留在 pending；等待在途 worker 结束后再关闭 Redis/MongoDB，不会提前关连接影响其他 worker。失败退出码为 1。成功写入目标但待办未删除的任务，下次凭 completed 状态/task_id 清理待办而不重译。
 
-Ctrl+C/SIGTERM 停止领取新任务，等待正在处理的商品结束；强制终止后默认续跑恢复 pending。运行锁丢失后禁止提交新结果。翻译过程中源数据变化时结果对应读取时快照，后续更新需定向重译。此命令不修改 data_raw、不翻译 collection_raw，也不清理源集合删除商品的历史译文。
+Ctrl+C/SIGTERM 停止领取新任务，等待正在处理的商品结束；强制终止后默认续跑恢复 pending。运行锁丢失后禁止提交新结果。翻译过程中源数据变化时结果对应读取时快照，后续更新使用 filter 命令重译。普通命令不修改 data_raw；filter 命令只增加 translation_flags 完成标记。两者均不翻译 collection_raw，也不清理源集合删除商品的历史译文。
 
 ## 文件
 
-| 文件             | 职责                                              |
-| ---------------- | ------------------------------------------------- |
-| `src/config.ts`  | 翻译字段、数据库/集合、语言、数量、缓存与重试配置 |
-| `src/index.ts`   | CLI、env、MongoDB、批处理续跑及退出清理           |
-| `src/fields.ts`  | 字段定位、原数据复制、KV、商品内缓存及 hash       |
-| `src/deepl.ts`   | 唯一翻译供应商、HTML 模式、重试及限速             |
-| `src/context.ts` | 加载分类名称、拼接 context 及计算上下文 hash      |
-| `src/cache.ts`   | Redis 实时缓存与相同原文请求合并                  |
-| `src/redis.ts`   | Redis 连接、令牌锁及自动续期                      |
-| `src/tasks.ts`   | 待办入队、断点恢复和原子领取                      |
-| `src/types.ts`   | 翻译协议和完成元数据                              |
+| 文件                             | 职责                                              |
+| -------------------------------- | ------------------------------------------------- |
+| `src/config.ts`                  | 翻译字段、数据库/集合、语言、数量、缓存与重试配置 |
+| `src/commands/translate/`        | 普通续跑独立入口和入队逻辑                        |
+| `src/commands/translate-filter/` | Filter 重译独立入口和入队/标记逻辑                |
+| `src/run-products.ts`            | 共享 CLI 数量参数、翻译执行、并发 worker 及清理   |
+| `src/fields.ts`                  | 字段定位、原数据复制、KV、商品内缓存及 hash       |
+| `src/deepl.ts`                   | 唯一翻译供应商、HTML 模式、重试及限速             |
+| `src/context.ts`                 | 加载分类名称、拼接 context 及计算上下文 hash      |
+| `src/cache.ts`                   | Redis 实时缓存与相同原文请求合并                  |
+| `src/redis.ts`                   | Redis 连接、令牌锁及自动续期                      |
+| `src/tasks.ts`                   | 公共任务协议、普通进度初始化和原子领取            |
+| `src/types.ts`                   | 翻译协议和完成元数据                              |
 
 ## 分类名称翻译（独立命令）
 
@@ -134,7 +157,7 @@ pnpm translate-collections
 pnpm translate-collections --limit=10
 ```
 
-入口为 `src/commands/translate-collections/index.ts`，独立配置在同目录的 `config.ts`。源集合为 `cw_data.collection_raw`，目标集合为 `cw_data.collection_raw_translated`。复制源记录的 `_id`、`collection_id`、`parent_id` 及其他字段，仅翻译 `name`，额外记录 translation 完成状态、原始名称、语言、版本及完成时间。源集合不修改。
+入口为 `src/commands/translate-collections/index.ts`，独立配置在同目录的 `config.ts`。源集合为 `cw_data.collection_raw`，目标集合为 `cw_data.collection_raw_translated`。复制源记录的 `_id`、`collection_id`、`parent_id` 及其他字段，仅翻译 `name`，额外记录 translation 完成状态、原始名称、语言、版本及完成时间。普通续跑不修改源集合；filter 模式只在原表增加配置指定的完成标记。
 
 分类使用专用 `custom_instructions`，要求简洁自然的简体中文导航标签、标准药品/营养/美妆术语、保留品牌名且不追加解释。每条 context 包含当前英文名称、从根到直接父级的真实分类路径，以及最多 8 个直接子分类名称；不使用商品属性或继承的大分类。缺失父级或父级循环会报错，不推测层级。
 

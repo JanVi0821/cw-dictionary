@@ -57,7 +57,7 @@ export function pageUrl(id: string, offset: number): string {
   return url.href;
 }
 
-function parseProduct(value: unknown): ListProduct {
+function parseProduct(value: unknown, readPrice: boolean): ListProduct {
   const item = object(value, "item");
   const attributes = new Map<string, Obj>();
   for (const value of array(item.attribute)) {
@@ -101,7 +101,7 @@ function parseProduct(value: unknown): ListProduct {
     url.pathname.match(/^\/buy\/(\d+)(?:\/|$)/)?.[1] !== sid
   )
     throw new Error(`Invalid producturl for sid ${sid}`);
-  const rawPrice = field("price_cw_nz");
+  const rawPrice = readPrice ? field("price_cw_nz") : null;
   const price = rawPrice === null ? null : Number(rawPrice);
   if (price !== null && (!Number.isFinite(price) || price < 0)) {
     throw new Error(`Invalid price: ${sid}`);
@@ -117,6 +117,7 @@ export function parsePage(
   body: string,
   requestedOffset: number,
   requestedCategory: string,
+  options: { readPrice?: boolean } = {},
 ): ListPage {
   let decoded: unknown = JSON.parse(body);
   if (typeof decoded === "string") decoded = JSON.parse(decoded);
@@ -133,8 +134,13 @@ export function parsePage(
   const total = integer(results["total-items"], "total-items");
   const offset = integer(results["start-index"], "start-index");
   if (offset !== requestedOffset) throw new Error("Response offset mismatch");
-  if (integer(results["view-size"], "view-size") !== PAGE_SIZE) {
-    throw new Error("Unexpected page size; refusing to skip items");
+  const expected = Math.min(PAGE_SIZE, Math.max(0, total - offset));
+  const viewSize = integer(results["view-size"], "view-size");
+  // 不足一页时，接口可能返回实际条数；非末页仍必须返回完整页。
+  if (viewSize !== PAGE_SIZE && viewSize !== expected) {
+    throw new Error(
+      `Unexpected page size: view-size=${viewSize}, expected=${expected}, page-size=${PAGE_SIZE}; refusing to skip items`,
+    );
   }
   const ranking = object(results.ranking, "ranking");
   const fields = object(ranking["sort-fields"], "sort-fields");
@@ -145,8 +151,9 @@ export function parsePage(
     throw new Error("API did not apply packageid ascending sort");
   }
   const items = section.items == null ? {} : object(section.items, "items");
-  const products = array(items.item).map(parseProduct);
-  const expected = Math.min(PAGE_SIZE, Math.max(0, total - offset));
+  const products = array(items.item).map((item) =>
+    parseProduct(item, options.readPrice !== false),
+  );
   if (products.length !== expected) {
     throw new Error(
       `Page ${offset}: expected ${expected}, received ${products.length}`,

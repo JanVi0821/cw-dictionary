@@ -211,6 +211,7 @@ export function parseDetail(
   finalUrl: string,
   expectedSid: string,
 ): {
+  isPrescription: boolean;
   product: ProductDetail;
   collections: CollectionRecord[];
 } {
@@ -499,6 +500,7 @@ export function parseDetail(
 
   // 12. 抓取时间代表本次成功解析；只有分类表写入成功后，调用方才保存这份商品。
   return {
+    isPrescription,
     collections: [...collections.values()],
     product: {
       sid,

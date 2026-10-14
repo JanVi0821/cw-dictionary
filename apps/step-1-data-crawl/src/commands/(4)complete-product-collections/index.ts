@@ -230,7 +230,7 @@ async function main() {
 读取导出的 leaves.json，分页合并 path_ids 到 ${DATABASE}.${PRODUCT_COLLECTION}.category_ids。
 新商品写入 sid、name、category_ids；不会采集详情、价格或更新译文/Supabase。
 默认从 checkpoint 续跑，已全部完成则退出；--fresh 从首叶子重扫但不删除已有数据。
-配置：src/commands/complete-product-collections/config.ts
+配置：src/commands/(4)complete-product-collections/config.ts
 请先执行 pnpm export-collection-tree。本命令仅允许单实例运行。`);
     return;
   }
