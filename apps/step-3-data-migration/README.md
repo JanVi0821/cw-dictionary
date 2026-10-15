@@ -46,7 +46,9 @@ pnpm migrate:products
 pnpm migrate:product-translations
 ```
 
-按业务唯一键批量 upsert，已存在记录保留自增 ID，覆盖白名单内的业务字段。重复执行会从源表开头重新读取，已经提交的批次不丢失，不存在跨表自动运行入口或本地断点文件。失败后重跑即可；自增序列在 upsert/回滚时可能出现间隙，属于正常行为。
+商品与商品译文先比较目标，仅 upsert 新记录或发生变化的记录，内容完全一致时跳过。分类和分类译文继续批量 upsert。已存在记录保留自增 ID，更新白名单内的业务字段。
+
+重复执行会从源表开头重新读取，不按目标最大 ID 截断，因此老商品的新分类和重新生成的译文也会同步。已经提交的批次不丢失，不存在跨表自动运行入口或本地断点文件；失败后重跑会跳过已经同步且未变化的商品/译文。自增序列在 upsert/回滚时可能出现间隙，属于正常行为。
 
 默认迁移全部记录，数量限制可通过统一配置 LIMIT 或命令参数设置：
 
@@ -58,6 +60,21 @@ pnpm migrate:products --limit=all
 每批默认 100 条，通过 `supabase.from(table).upsert(batch, { onConflict, ignoreDuplicates: false, defaultToNull: false })` 提交一次 Data API 请求；请求超时由 REQUEST_TIMEOUT_MS 配置。已知数据库错误会使本批事务回滚，之前批次已提交；网络错误或超时可能发生在服务器已经提交之后，因此可重复执行 upsert 恢复。SIGINT/SIGTERM 停止读取新记录并提交当前有效批次。强制退出或连接中断后可重新执行命令，已提交数据按唯一键更新，不会重复创建业务记录。源表不会被修改。不发起 SQL 或 ANALYZE 请求。
 
 没有外键，因此四个命令执行顺序不受数据库限制；业务展示前应完成全部四张表的迁移。脚本不删除目标中已经存在、但源表中不存在的记录。
+
+## 商品与译文增量同步
+
+```bash
+pnpm migrate:products
+pnpm migrate:product-translations
+```
+
+- `migrate:products` 扫描 data_raw，以 sid 匹配 products。将本地最新 category_ids 数字数组去重后写入目标，不与 Supabase 旧数组再做并集，避免已从本地移除的错误分类继续残留。其他白名单字段变化时也同步，目标不存在的商品插入完整记录。
+- `migrate:product-translations` 扫描 data_raw_translated，以 `(sid, translation.lang)` 匹配目标 `(sid, locale)`，新增不存在的译文、更新变化的旧译文。不会复制分类、价格或图片，也不生成本地不存在的译文；之后有新译文时再次执行即可补入。
+- 两张商品表的 `incremental` 开关位于 TABLES。目标查询按业务唯一键过滤，使用 LOOKUP_PAGE_SIZE 分页，避免多语言匹配结果超出单次 Data API 返回限制。
+- JSONB 对象使用深比较，不因对象键顺序变化而重复写入；数组按顺序比较。MongoDB 内部 ID、抓取/翻译元数据和 filter 完成标记不参与比较。
+- 日志包含 processed（累计扫描）、written、unchanged、new_records 和 changed_records。新增/变化数量按写入前快照分类；有其他管理任务并发写入时，实际 insert/update 比例可能变化，业务唯一键仍防止重复记录。
+- `--limit` 限制候选读取数量，不是变化记录数量；全部分类更新应使用默认全部或 `--limit=all`。
+- 新商品应先完成 crawl-details，译文应先完成翻译。缺少价格或字段格式不完整时报告业务 ID 并停止，不将缺失价格伪造为 0。
 
 ## 字段处理
 

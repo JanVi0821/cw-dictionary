@@ -40,7 +40,15 @@ export const TASK_COLLECTION = "translation_pending";
 export const FILTER_TASK_COLLECTION = "translation_filter_pending";
 export const PROGRESS_COLLECTION = "translation_progress";
 /** Filter 模式筛选原表；空对象表示所有已完成详情的商品。 */
-export const TRANSLATION_FILTER: Filter<ProductDocument> = {};
+export const TRANSLATION_FILTER: Filter<ProductDocument> = {
+  $or: [
+    {
+      fetched_at: {
+        $gt: "2026-10-14T00:00:00.000Z",
+      },
+    },
+  ],
+};
 /** 原表 translation_flags 下的完成标记；更换常量值即开启新一轮 filter 重译。 */
 export const FILTER_COMPLETION_FLAG = "products_v1";
 export const REDIS_NAMESPACE = "cw:translation";

@@ -6,7 +6,6 @@ import {
   ENV,
   LIMIT,
   MONGO_DATABASE,
-  REQUEST_TIMEOUT_MS,
   SCHEMA,
   TABLES,
   type TableConfig,
@@ -14,6 +13,7 @@ import {
 } from "./config.ts";
 import { createSupabaseClient, requiredEnv } from "./database.ts";
 import { mapDocument } from "./mapping.ts";
+import { syncBatch } from "./sync-batch.ts";
 
 /** 仅迁移指定的一张表；每批一次 Data API upsert，不使用数据库直连。 */
 export async function migrate(key: TableKey) {
@@ -26,7 +26,7 @@ export async function migrate(key: TableKey) {
   const table: TableConfig = TABLES[key];
   if (values.help) {
     console.log(
-      `${table.source} -> ${SCHEMA}.${table.target}\n--limit=100|all：本次读取数量；默认全部。重复执行按业务唯一键 upsert。`,
+      `${table.source} -> ${SCHEMA}.${table.target}\n--limit=100|all：本次读取数量；默认全部。\n${table.incremental ? "扫描全部候选，比较目标后仅新增/更新变化记录；包含旧商品分类变更。" : "重复执行按业务唯一键 upsert。"}`,
     );
     return;
   }
@@ -71,21 +71,17 @@ export async function migrate(key: TableKey) {
     if (Number.isFinite(limit)) cursor.limit(limit);
     let batch: Record<string, unknown>[] = [];
     let processed = 0;
+    let written = 0;
+    let unchanged = 0;
+    let newRecords = 0;
+    let changedRecords = 0;
     async function flush() {
       if (!batch.length) return;
-      const { error, status } = await supabase
-        .from(table.target)
-        .upsert(batch, {
-          onConflict: table.unique.join(","),
-          ignoreDuplicates: false,
-          // 不传 id，自增列使用数据库默认值；已存在记录按业务唯一键更新。
-          defaultToNull: false,
-        })
-        .abortSignal(AbortSignal.timeout(REQUEST_TIMEOUT_MS));
-      if (error)
-        throw new Error(
-          `Migration request failed: ${table.target}, ${error.code || status}, ${error.message}`,
-        );
+      const result = await syncBatch(supabase, table, batch);
+      written += result.written;
+      unchanged += result.unchanged;
+      newRecords += result.new_records ?? 0;
+      changedRecords += result.changed_records ?? 0;
       processed += batch.length;
       batch = [];
       console.log(
@@ -93,6 +89,7 @@ export async function migrate(key: TableKey) {
           event: "migration_batch_completed",
           table: table.target,
           processed,
+          ...result,
         }),
       );
     }
@@ -111,6 +108,11 @@ export async function migrate(key: TableKey) {
         event: "migration_finished",
         table: table.target,
         processed,
+        written,
+        unchanged,
+        ...(table.incremental
+          ? { new_records: newRecords, changed_records: changedRecords }
+          : {}),
         stopping,
       }),
     );

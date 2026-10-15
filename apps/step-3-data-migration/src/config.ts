@@ -10,6 +10,8 @@ export const MONGO_DATABASE = "cw_data";
 export const SCHEMA = "public";
 export const EXTENSION_SCHEMA = "extensions";
 export const BATCH_SIZE = 100;
+/** Data API 比较目标记录时的请求页大小；实际返回更少时按返回条数继续。 */
+export const LOOKUP_PAGE_SIZE = 100;
 export const LIMIT = Infinity;
 export const CONNECTION_TIMEOUT_MS = 10_000;
 export const REQUEST_TIMEOUT_MS = 120_000;
@@ -36,6 +38,8 @@ export type TableConfig = {
   columns: readonly Column[];
   parentIndex?: boolean;
   categoryIndex?: boolean;
+  /** 每批先比较目标，仅 upsert 新记录和发生变化的记录。 */
+  incremental?: boolean;
 };
 const name: Column = {
   name: "name",
@@ -94,6 +98,7 @@ export const TABLES = {
     translated: false,
     unique: ["sid"],
     categoryIndex: true,
+    incremental: true,
     columns: [
       sid,
       name,
@@ -136,6 +141,7 @@ export const TABLES = {
     target: "product_translations",
     translated: true,
     unique: ["sid", "locale"],
+    incremental: true,
     columns: [sid, locale, name, additionalInfo, info, attributes, keyFeatures],
   },
   collections: {
