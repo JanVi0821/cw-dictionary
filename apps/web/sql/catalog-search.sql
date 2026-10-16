@@ -32,6 +32,12 @@ create index if not exists collections_name_pgroonga_idx
 create index if not exists collection_translations_name_pgroonga_idx
   on public.collection_translations using pgroonga (name);
 
+-- Retire expression indexes from the previous to_tsvector search.
+drop index if exists public.products_name_fts_idx;
+drop index if exists public.product_translations_name_fts_idx;
+drop index if exists public.collections_name_fts_idx;
+drop index if exists public.collection_translations_name_fts_idx;
+
 -- OUT columns change from image text to images text[]. Recreate atomically;
 -- do not CASCADE: unexpected database dependencies must fail the transaction.
 drop function if exists public.search_catalog(text, text, integer);

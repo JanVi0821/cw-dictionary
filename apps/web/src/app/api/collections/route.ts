@@ -1,5 +1,6 @@
 import { routing, type AppLocale } from "@/i18n/routing";
 import { listCollectionChildren } from "@/lib/collections";
+import { cachedCollection } from "@/lib/redis";
 import { supabase } from "@/lib/supabase/server";
 
 const LOCALES = new Set<string>(routing.locales);
@@ -15,35 +16,46 @@ export async function GET(request: Request) {
     return Response.json({ error: "Invalid collection request" }, { status: 400 });
   }
 
+  const collectionIds =
+    ids === null
+      ? null
+      : [...new Set(ids.split(","))]
+          .filter((id) => PARENT_ID_PATTERN.test(id))
+          .map(Number)
+          .sort((left, right) => left - right);
+  const cacheKey =
+    collectionIds === null
+      ? `collections:${locale}:parent:${parent ?? "root"}`
+      : `collections:${locale}:ids:${collectionIds.join(",")}`;
+
   try {
-    if (ids !== null) {
-      const collectionIds = [...new Set(ids.split(","))]
-        .filter((id) => PARENT_ID_PATTERN.test(id))
-        .map(Number);
-      if (collectionIds.length === 0) return Response.json({ collections: [], translations: [] });
+    const body = await cachedCollection(cacheKey, async () => {
+      if (collectionIds !== null) {
+        if (collectionIds.length === 0) return { collections: [], translations: [] };
 
-      const [collections, translations] = await Promise.all([
-        supabase.from("collections").select("collection_id, name").in("collection_id", collectionIds),
-        supabase
-          .from("collection_translations")
-          .select("collection_id, name")
-          .eq("locale", locale)
-          .in("collection_id", collectionIds),
-      ]);
-      if (collections.error) throw collections.error;
-      if (translations.error) throw translations.error;
-      return Response.json({
-        collections: collections.data ?? [],
-        translations: translations.data ?? [],
-      });
-    }
+        const [collections, translations] = await Promise.all([
+          supabase.from("collections").select("collection_id, name").in("collection_id", collectionIds),
+          supabase
+            .from("collection_translations")
+            .select("collection_id, name")
+            .eq("locale", locale)
+            .in("collection_id", collectionIds),
+        ]);
+        if (collections.error) throw collections.error;
+        if (translations.error) throw translations.error;
+        return {
+          collections: collections.data ?? [],
+          translations: translations.data ?? [],
+        };
+      }
 
-    const items = await listCollectionChildren(
-      supabase,
-      parent === null ? null : Number(parent),
-      locale as AppLocale,
-    );
-    return Response.json(items);
+      return listCollectionChildren(
+        supabase,
+        parent === null ? null : Number(parent),
+        locale as AppLocale,
+      );
+    });
+    return Response.json(body);
   } catch {
     return Response.json({ error: "Couldn't load collections" }, { status: 500 });
   }

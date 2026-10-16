@@ -2,7 +2,7 @@
 
 Apply `catalog-search.sql` in the target project's Supabase SQL Editor. It requires the already enabled PGroonga extension with `fuzzy_max_distance_ratio` support (3.2.1+); the script checks support before changing anything. It resolves the extension's installed schema and creates four `name` PGroonga indexes, one for each original/translation table.
 
-The script atomically recreates `public.search_catalog(p_query, p_locale, p_limit)` with `images text[]`. It does not use CASCADE, modify catalogue rows, or change existing table RLS/write policies. Existing trigram/full-text indexes are retained so this deployment does not remove indexes used by other queries.
+The script atomically recreates `public.search_catalog(p_query, p_locale, p_limit)` with `images text[]`. It does not use CASCADE, modify catalogue rows, or change existing table RLS/write policies. Existing trigram indexes are retained for literal substring searches. The four obsolete `name_fts_idx` expression indexes are removed because the RPC no longer uses `to_tsvector`.
 
 ## Matching
 

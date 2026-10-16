@@ -11,11 +11,15 @@ type CardRow = {
   original_name: string | null;
 };
 
-const RESULT_LIMIT = 20;
+const RESULT_LIMIT = 48;
 export const MAX_SEARCH_LENGTH = 120;
 const REQUEST_TIMEOUT_MS = 10_000;
 
-function toCard(row: CardRow, href: string, images: string[] | null): ProductCardItem {
+function toCard(
+  row: CardRow,
+  href: string,
+  images: string[] | null,
+): ProductCardItem {
   return {
     id: row.id,
     name: row.name,
