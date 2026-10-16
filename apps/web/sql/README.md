@@ -1,29 +1,33 @@
 # Catalogue search
 
-`catalog-search.sql` creates `public.search_catalog(p_query, p_locale, p_limit)` and four expression GIN indexes for name full-text search. It reuses the existing pg_trgm name indexes. Apply the file through Supabase SQL Editor before deploying the matching application code; it is safe to reapply. The function is dropped and recreated within one transaction because its image return column changes to `images text[]`. Unexpected database dependencies cause the transaction to fail instead of being removed with CASCADE.
+Apply `catalog-search.sql` in the target project's Supabase SQL Editor. It requires the already enabled PGroonga extension with `fuzzy_max_distance_ratio` support (3.2.1+); the script checks support before changing anything. It resolves the extension's installed schema and creates four `name` PGroonga indexes, one for each original/translation table.
 
-The API uses the existing Publishable Key Supabase client and `rpc`, not a PostgreSQL connection or Secret Key. `SECURITY INVOKER` retains table RLS; only anon, authenticated and service_role receive explicit EXECUTE permission. No product or translation rows are modified by this deployment.
+The script atomically recreates `public.search_catalog(p_query, p_locale, p_limit)` with `images text[]`. It does not use CASCADE, modify catalogue rows, or change existing table RLS/write policies. Existing trigram/full-text indexes are retained so this deployment does not remove indexes used by other queries.
 
 ## Matching
 
-- NFKC normalization, lowercasing and punctuation/space tokenization.
-- Search original names and every available translation, regardless of display language.
-- Use substring, simple full-text search and pg_trgm for candidate retrieval.
-- Require every query token to match somewhere among the names of the same product/category; token order is irrelevant.
-- Short tokens and terms containing numbers must match literally. Pure numbers use digit boundaries, so 75 does not match 750; alphanumeric dosage terms use word boundaries.
-- Other tokens of at least three characters can match with word_similarity >= 0.45. The candidate threshold is 0.35, set within the RPC transaction after loading the extension library.
-- Rank exact names, phrases and exact token coverage ahead of fuzzy-only matches, then apply deterministic tie-breakers. Return up to 20 products and 20 categories (RPC permits 1–50 each).
-- Display the requested translation when present, otherwise the original name; deduplicate by sid/category_id before limiting.
+- NFKC normalization, lowercasing, and punctuation-to-space normalization.
+- Split only at explicit whitespace. PGroonga's default TokenBigram handles mixed scripts within each term. No custom brand, dosage, or numeric word-boundary inference remains.
+- Each normalized, lowercase alphanumeric user term is escaped before being passed to PGroonga; user input cannot introduce Groonga operators or query syntax.
+- Search original names and every available translation. All distinct query terms must match somewhere among the names of the same business item, irrespective of term order or display locale.
+- Ordinary matches and typo-tolerant matches use separate PGroonga queries. `fuzzy_ratio` in the RPC is the edit-distance ratio, currently `0.2`; this is NOT the former trigram similarity threshold. Larger values allow more spelling differences, including potentially different numeric/model terms.
+- Independently preserve literal continuous substring matches, including `A2全脂` inside `A2全脂奶粉 1公斤`. These matches cannot be discarded by the term coverage step.
+- Match tiers, in order: entire name, continuous substring, all terms matched ordinarily, terms requiring typo tolerance. Within a tier, use aggregated PGroonga scores, then display name length and business ID as deterministic tie-breakers.
+- Terms are aggregated by sid/collection_id before limiting, so matching several translations does not produce duplicate cards. Each term uses the strongest ordinary score if available, otherwise its strongest fuzzy score; term scores are summed. Returned `score` is the engine score, not an encoding of the match tier.
+- PGroonga scores can be zero when PostgreSQL chooses a sequential scan. Tier ordering and deterministic tie-breakers still apply; inspect execution plans if score-based ranking is ineffective.
 
-The application rejects queries over 120 Unicode characters with HTTP 400, returns the existing empty/tooShort response for queries shorter than two characters and applies a 10-second request timeout. The RPC validates its own parameters.
+This is lexical search, not semantic search or a synonym dictionary. It does not infer medical equivalence, recognize doses, or promise that numerically similar product variants are equivalent.
 
-Chinese currently uses literal substrings and explicit separated tokens, with trigram fallback for longer terms. This is not Chinese word segmentation or a synonym dictionary. Brand aliases, semantic ingredient synonyms and arbitrary spelling errors are not guaranteed matches. Neither PGroonga nor Elasticsearch is required by this implementation.
+## API and permissions
 
-The SQL function changes transaction-local trigram settings, so it is declared VOLATILE even though it only reads catalogue data; invoke it via the SDK's default POST RPC. Deployment leaves existing table policies and grants unchanged.
+The application continues using the Publishable Key Supabase client and `rpc`. No application change or additional request is needed. The RPC returns `kind`, `id`, `name`, `original_name`, `images`, and `score`; only `images` is supported, not the old `image` field. Product image arrays are fetched after ranking and limiting; categories return an empty array.
 
-## Request performance
+`p_locale` supports `en` and `zh`, controlling only the displayed translation, with original-name fallback. The RPC allows 1–50 results per kind; the application requests 20 products and 20 categories. Queries shorter than two normalized characters return no results; inputs longer than 120 characters are rejected. The client has a 10-second request timeout.
 
-- The RPC returns all card data, including full product `images` arrays, in one request. The application requires this return format; apply the SQL before deploying the application code.
-- Exact token matches skip `word_similarity` evaluation. Candidate retrieval, fuzzy thresholds and ranking rules remain unchanged.
-- Ranking includes only names and scores; full image arrays are fetched after each result kind has been limited.
-- No cache or candidate truncation is introduced. Actual latency improvements require measurement on the deployed database.
+`SECURITY INVOKER` retains caller table permissions and RLS. Execute is explicitly granted to anon, authenticated, and service_role, and revoked from PUBLIC. The function's search path includes the actual extension schema. The schema cache reload notification is committed together with the function update.
+
+## Deployment status
+
+Deployed to project `xrubgevqbtdnynyntqcn` on 2026-10-16 through the Jan0822 Dashboard session (PGroonga 3.2.5, schema `extensions`). The SQL Editor confirmed success. Publishable Key RPC requests returned `A2全脂奶粉 1公斤` for `A2全脂` with four images, and Blackmores products/categories for the misspelled `blackmors`. These are individual operational checks, not a search quality benchmark.
+
+Apply this file to other target databases before using the application. Writing this file alone does not deploy the RPC; the deployed return field must be `images text[]`.

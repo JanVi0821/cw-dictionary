@@ -1,17 +1,36 @@
 -- One-time catalogue search deployment. Application reads through Supabase RPC.
 -- Does not change products, translations, existing table policies, or write grants.
 begin;
-create extension if not exists pg_trgm with schema extensions;
-set local search_path = pg_catalog, public, extensions;
+-- PGroonga 3.2.1+ is required for typo tolerance. Resolve the installed
+-- extension schema (Dashboard may install it in public or extensions).
+do $setup$
+declare extension_schema text;
+begin
+  select n.nspname into extension_schema
+  from pg_extension e join pg_namespace n on n.oid = e.extnamespace
+  where e.extname = 'pgroonga';
+  if extension_schema is null then
+    raise exception 'Enable the pgroonga extension before applying this file';
+  end if;
+  perform set_config('search_path', format('pg_catalog, public, extensions, %I', extension_schema), true);
+  if not exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = extension_schema and p.proname = 'pgroonga_condition'
+      and 'fuzzy_max_distance_ratio' = any(p.proargnames)
+  ) then
+    raise exception 'PGroonga with fuzzy_max_distance_ratio support (3.2.1+) is required';
+  end if;
+end;
+$setup$;
 
-create index if not exists products_name_fts_idx
-  on public.products using gin (to_tsvector('simple'::regconfig, name));
-create index if not exists product_translations_name_fts_idx
-  on public.product_translations using gin (to_tsvector('simple'::regconfig, name));
-create index if not exists collections_name_fts_idx
-  on public.collections using gin (to_tsvector('simple'::regconfig, name));
-create index if not exists collection_translations_name_fts_idx
-  on public.collection_translations using gin (to_tsvector('simple'::regconfig, name));
+create index if not exists products_name_pgroonga_idx
+  on public.products using pgroonga (name);
+create index if not exists product_translations_name_pgroonga_idx
+  on public.product_translations using pgroonga (name);
+create index if not exists collections_name_pgroonga_idx
+  on public.collections using pgroonga (name);
+create index if not exists collection_translations_name_pgroonga_idx
+  on public.collection_translations using pgroonga (name);
 
 -- OUT columns change from image text to images text[]. Recreate atomically;
 -- do not CASCADE: unexpected database dependencies must fail the transaction.
@@ -35,12 +54,8 @@ set statement_timeout = '8s'
 as $function$
 declare
   normalized_query text;
+  fuzzy_ratio constant real := 0.2;
 begin
-  -- Load pg_trgm before setting its USERSET parameter. A fresh backend does not
-  -- register extension GUCs until the library is loaded; function SET clauses
-  -- would be checked before that and can fail for non-superuser roles.
-  perform word_similarity('', '');
-  perform set_config('pg_trgm.word_similarity_threshold', '0.35', true);
   normalized_query := btrim(regexp_replace(lower(normalize(coalesce(p_query, ''), NFKC)), '[^[:alnum:]]+', ' ', 'g'));
   if char_length(normalized_query) < 2 then return; end if;
   if char_length(p_query) > 120 then
@@ -54,85 +69,185 @@ begin
   end if;
 
   return query
+  -- Whitespace separates explicit user terms. PGroonga handles the scripts
+  -- within each term; do not infer brand/model/dosage semantics from digits.
   with tokens as materialized (
-    select distinct token,
-      -- Short tokens and numeric/dosage tokens must not be corrected fuzzily.
-      char_length(token) >= 3 and token !~ '[0-9]' as allow_fuzzy
-    from regexp_split_to_table(normalized_query, ' +') as token
-  ), parameters as (
-    select array_agg('%' || token || '%') as patterns,
-      coalesce(array_agg(token) filter (where allow_fuzzy), array[]::text[]) as fuzzy_terms,
-      plainto_tsquery('simple'::regconfig, normalized_query) as tsquery
-    from tokens
-  ), all_names as not materialized (
-    -- Search every available language; only the output label follows p_locale.
-    select 'product'::text as item_kind, p.sid as item_id, p.name as search_name
-      from public.products p
+    select token, pgroonga_query_escape(token) as query_term
+    from (
+      select distinct token
+      from regexp_split_to_table(normalized_query, ' +') as token
+    ) t
+  ), ordinary_products as materialized (
+    select 'product'::text as item_kind, n.sid::text as item_id,
+      t.token, n.name as search_name, true as ordinary,
+      pgroonga_score(n.tableoid, n.ctid) as engine_score
+    from tokens t cross join lateral (
+      select b.sid, b.name, b.tableoid, b.ctid
+      from public.products b
+      where b.name &@~ pgroonga_condition(
+        t.query_term, index_name => 'products_name_pgroonga_idx'
+      )
+    ) n
+  ),
+  ordinary_product_translations as materialized (
+    select 'product'::text as item_kind, n.sid::text as item_id,
+      t.token, n.name as search_name, true as ordinary,
+      pgroonga_score(n.tableoid, n.ctid) as engine_score
+    from tokens t cross join lateral (
+      select b.sid, b.name, b.tableoid, b.ctid
+      from public.product_translations b
+      where b.name &@~ pgroonga_condition(
+        t.query_term, index_name => 'product_translations_name_pgroonga_idx'
+      )
+    ) n
+  ),
+  ordinary_collections as materialized (
+    select 'collection'::text as item_kind, n.collection_id::text as item_id,
+      t.token, n.name as search_name, true as ordinary,
+      pgroonga_score(n.tableoid, n.ctid) as engine_score
+    from tokens t cross join lateral (
+      select b.collection_id, b.name, b.tableoid, b.ctid
+      from public.collections b
+      where b.name &@~ pgroonga_condition(
+        t.query_term, index_name => 'collections_name_pgroonga_idx'
+      )
+    ) n
+  ),
+  ordinary_collection_translations as materialized (
+    select 'collection'::text as item_kind, n.collection_id::text as item_id,
+      t.token, n.name as search_name, true as ordinary,
+      pgroonga_score(n.tableoid, n.ctid) as engine_score
+    from tokens t cross join lateral (
+      select b.collection_id, b.name, b.tableoid, b.ctid
+      from public.collection_translations b
+      where b.name &@~ pgroonga_condition(
+        t.query_term, index_name => 'collection_translations_name_pgroonga_idx'
+      )
+    ) n
+  ),
+  fuzzy_products as materialized (
+    select 'product'::text as item_kind, n.sid::text as item_id,
+      t.token, n.name as search_name, false as ordinary,
+      pgroonga_score(n.tableoid, n.ctid) as engine_score
+    from tokens t cross join lateral (
+      select b.sid, b.name, b.tableoid, b.ctid
+      from public.products b
+      where b.name &@~ pgroonga_condition(
+        t.query_term, index_name => 'products_name_pgroonga_idx',
+        fuzzy_max_distance_ratio => fuzzy_ratio
+      )
+    ) n
+  ),
+  fuzzy_product_translations as materialized (
+    select 'product'::text as item_kind, n.sid::text as item_id,
+      t.token, n.name as search_name, false as ordinary,
+      pgroonga_score(n.tableoid, n.ctid) as engine_score
+    from tokens t cross join lateral (
+      select b.sid, b.name, b.tableoid, b.ctid
+      from public.product_translations b
+      where b.name &@~ pgroonga_condition(
+        t.query_term, index_name => 'product_translations_name_pgroonga_idx',
+        fuzzy_max_distance_ratio => fuzzy_ratio
+      )
+    ) n
+  ),
+  fuzzy_collections as materialized (
+    select 'collection'::text as item_kind, n.collection_id::text as item_id,
+      t.token, n.name as search_name, false as ordinary,
+      pgroonga_score(n.tableoid, n.ctid) as engine_score
+    from tokens t cross join lateral (
+      select b.collection_id, b.name, b.tableoid, b.ctid
+      from public.collections b
+      where b.name &@~ pgroonga_condition(
+        t.query_term, index_name => 'collections_name_pgroonga_idx',
+        fuzzy_max_distance_ratio => fuzzy_ratio
+      )
+    ) n
+  ),
+  fuzzy_collection_translations as materialized (
+    select 'collection'::text as item_kind, n.collection_id::text as item_id,
+      t.token, n.name as search_name, false as ordinary,
+      pgroonga_score(n.tableoid, n.ctid) as engine_score
+    from tokens t cross join lateral (
+      select b.collection_id, b.name, b.tableoid, b.ctid
+      from public.collection_translations b
+      where b.name &@~ pgroonga_condition(
+        t.query_term, index_name => 'collection_translations_name_pgroonga_idx',
+        fuzzy_max_distance_ratio => fuzzy_ratio
+      )
+    ) n
+  ), hits as materialized (
+    select * from ordinary_products
     union all
-    select 'product', t.sid, t.name from public.product_translations t
+    select * from ordinary_product_translations
     union all
-    select 'collection', c.collection_id::text, c.name from public.collections c
+    select * from ordinary_collections
     union all
-    select 'collection', t.collection_id::text, t.name from public.collection_translations t
-  ), candidates as materialized (
-    select n.* from all_names n cross join parameters v
-    where n.search_name ilike any(v.patterns)
-       or n.search_name %> any(v.fuzzy_terms)
-       or to_tsvector('simple'::regconfig, n.search_name) @@ v.tsquery
-  ), token_matches as not materialized (
-    select c.item_kind, c.item_id, t.token, t.allow_fuzzy,
-      c.search_name,
-      case
-        -- A query for 75 should not count 750 as an exact dosage match.
-        when t.token ~ '^[0-9]+$'
-          then c.search_name ~* ('(^|[^0-9])' || t.token || '([^0-9]|$)')
-        when t.token ~ '[0-9]'
-          then c.search_name ~* ('(^|[^[:alnum:]])' || t.token || '([^[:alnum:]]|$)')
-        else c.search_name ilike ('%' || t.token || '%')
-      end as exact_token
-    from candidates c cross join tokens t
+    select * from ordinary_collection_translations
+    union all
+    select * from fuzzy_products
+    union all
+    select * from fuzzy_product_translations
+    union all
+    select * from fuzzy_collections
+    union all
+    select * from fuzzy_collection_translations
   ), per_token as (
-    select m.item_kind, m.item_id, m.token, m.allow_fuzzy,
-      bool_or(m.exact_token) as exact_token,
-      -- Exact matches already receive 1.0; do not calculate their similarity.
-      max(case when m.exact_token then 1.0
-        when m.allow_fuzzy then word_similarity(m.token, m.search_name)
-        else 0 end) as fuzzy_score
-    from token_matches m
-    group by m.item_kind, m.item_id, m.token, m.allow_fuzzy
-  ), token_scores as (
+    -- A term can match the original or ANY translation of the same item.
+    select h.item_kind, h.item_id, h.token, bool_or(h.ordinary) as ordinary,
+      coalesce(max(h.engine_score) filter (where h.ordinary),
+        max(h.engine_score)) as engine_score
+    from hits h group by h.item_kind, h.item_id, h.token
+  ), covered as (
     select t.item_kind, t.item_id,
-      bool_and(t.exact_token) as all_exact,
-      avg(case when t.exact_token then 1.0 else t.fuzzy_score end) as token_score
-    from per_token t
-    group by t.item_kind, t.item_id
-    -- Require coverage of ALL query tokens, independent of token order.
-    having bool_and(t.exact_token or (t.allow_fuzzy and t.fuzzy_score >= 0.45))
-  ), phrase_scores as (
-    select c.item_kind, c.item_id,
-      bool_or(lower(c.search_name) = normalized_query) as exact_name,
-      bool_or(strpos(lower(c.search_name), normalized_query) > 0) as exact_phrase
-    from candidates c group by c.item_kind, c.item_id
+      case when bool_and(t.ordinary) then 2 else 3 end as match_tier,
+      sum(t.engine_score)::double precision as engine_score
+    from per_token t group by t.item_kind, t.item_id
+    having count(*) = (select count(*) from tokens)
+  ), literal_names as materialized (
+    -- Literal substring matches survive independently of tokenization. The
+    -- normalized query contains only alphanumeric characters and spaces.
+    select 'product'::text as item_kind, n.sid::text as item_id, n.name as search_name
+    from public.products n
+    where n.name ilike ('%' || normalized_query || '%')
+    union all
+    select 'product'::text as item_kind, n.sid::text as item_id, n.name as search_name
+    from public.product_translations n
+    where n.name ilike ('%' || normalized_query || '%')
+    union all
+    select 'collection'::text as item_kind, n.collection_id::text as item_id, n.name as search_name
+    from public.collections n
+    where n.name ilike ('%' || normalized_query || '%')
+    union all
+    select 'collection'::text as item_kind, n.collection_id::text as item_id, n.name as search_name
+    from public.collection_translations n
+    where n.name ilike ('%' || normalized_query || '%')
+  ), tiers as (
+    select c.item_kind, c.item_id, c.match_tier, c.engine_score from covered c
+    union all
+    select n.item_kind, n.item_id,
+      case when lower(normalize(n.search_name, NFKC)) = normalized_query
+        then 0 else 1 end, 0::double precision
+    from literal_names n
   ), scores as (
-    select t.item_kind, t.item_id,
-      (case when p.exact_name then 300 when p.exact_phrase then 200
-        when t.all_exact then 100 else 0 end + 20 * t.token_score)::double precision as item_score
-    from token_scores t join phrase_scores p using (item_kind, item_id)
+    select s.item_kind, s.item_id, min(s.match_tier) as match_tier,
+      max(s.engine_score) as item_score
+    from tiers s group by s.item_kind, s.item_id
   ), labels as (
     select s.item_kind, s.item_id, coalesce(t.name, p.name) as display_name,
       case when t.name is not null and t.name <> p.name then p.name end as english_name,
-      s.item_score
+      s.match_tier, s.item_score
     from scores s join public.products p on s.item_kind='product' and p.sid=s.item_id
       left join public.product_translations t on t.sid=p.sid and t.locale=p_locale
     union all
     select s.item_kind, s.item_id, coalesce(t.name, c.name),
       case when t.name is not null and t.name <> c.name then c.name end,
-      s.item_score
+      s.match_tier, s.item_score
     from scores s join public.collections c on s.item_kind='collection' and c.collection_id::text=s.item_id
       left join public.collection_translations t on t.collection_id=c.collection_id and t.locale=p_locale
   ), ranked as (
     select l.*, row_number() over (partition by l.item_kind
-      order by l.item_score desc, char_length(l.display_name), l.item_id) as position
+      order by l.match_tier, l.item_score desc, char_length(l.display_name), l.item_id) as position
     from labels l
   ), limited as materialized (
     select r.* from ranked r where r.position <= p_limit
@@ -145,6 +260,19 @@ begin
     order by r.item_kind, r.position;
 end;
 $function$;
+
+do $configure$
+declare extension_schema text;
+begin
+  select n.nspname into extension_schema
+  from pg_extension e join pg_namespace n on n.oid = e.extnamespace
+  where e.extname = 'pgroonga';
+  execute format(
+    'alter function public.search_catalog(text, text, integer) set search_path = pg_catalog, public, extensions, %I',
+    extension_schema
+  );
+end;
+$configure$;
 
 revoke all on function public.search_catalog(text, text, integer) from public;
 grant execute on function public.search_catalog(text, text, integer) to anon, authenticated, service_role;

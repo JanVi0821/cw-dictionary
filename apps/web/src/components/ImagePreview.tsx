@@ -2,7 +2,7 @@
 
 import { IconChevronRight } from "@douyinfe/semi-icons";
 import { ImagePreview as SemiImagePreview } from "@douyinfe/semi-ui-19";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { cn } from "cn";
@@ -32,6 +32,14 @@ export function ImagePreview({
     setIndex(0);
     setVisible(false);
   }, [imageKey]);
+
+  useLayoutEffect(() => {
+    if (!visible) return;
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.width = "";
+    };
+  }, [visible]);
 
   if (!src) return null;
 
