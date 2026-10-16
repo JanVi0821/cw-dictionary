@@ -39,3 +39,6 @@ next-env.d.ts
 .vinext/
 .cloudflare/
 .wrangler/
+
+# Sentry Config File
+.env.sentry-build-plugin
