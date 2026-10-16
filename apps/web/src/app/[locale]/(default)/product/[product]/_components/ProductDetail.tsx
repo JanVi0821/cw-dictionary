@@ -1,9 +1,12 @@
 "use client";
 
+import { Collapsible, Tag } from "@douyinfe/semi-ui-19";
 import { useQuery } from "@tanstack/react-query";
+import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { ImagePreview } from "@/components/ImagePreview";
 import { ProductCardGrid } from "@/components/ProductCard";
+import { tagColor } from "@/components/StringTags";
 import { Link } from "@/i18n/navigation";
 import {
   collectionLinks,
@@ -15,6 +18,7 @@ import {
   type ProductNameRows,
   type ProductTranslationRecord,
 } from "@/lib/products";
+import { cn } from "cn";
 
 const htmlClass =
   "text-body text-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-bold [&_img]:my-2 [&_img]:max-w-full [&_li]:ml-5 [&_ol]:list-decimal [&_p+p]:mt-2 [&_table]:w-full [&_td]:border [&_td]:border-separator [&_td]:px-2 [&_td]:py-1 [&_ul]:list-disc";
@@ -29,6 +33,24 @@ function FactList({ items }: { items: string[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+function OriginalBlock({ children }: { children: ReactNode }) {
+  const t = useTranslations("Product");
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        className="cursor-pointer focus-ring text-label text-brand-blue underline underline-offset-2 hover:text-brand-blue-hover"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        {t("viewOriginal")}
+      </button>
+      <Collapsible isOpen={open}>{children}</Collapsible>
+    </div>
   );
 }
 
@@ -107,34 +129,36 @@ export function ProductDetail({
             <li key={item.id}>
               <Link
                 href={item.href}
-                className="focus-ring inline-flex max-w-full flex-wrap items-baseline gap-x-2 rounded-pill border border-border bg-surface px-3 py-1 text-label font-medium text-foreground hover:bg-surface-muted"
+                className="focus-ring inline-flex max-w-full"
               >
-                <span>{item.name}</span>
-                {item.originalName ? (
-                  <span className="font-normal text-foreground-muted">
-                    {item.originalName}
-                  </span>
-                ) : null}
+                <Tag
+                  color={tagColor(item.name)}
+                  className={cn(
+                    "max-w-full flex gap-2 !h-6 underline",
+                    "whitespace-pre",
+                  )}
+                >
+                  <span>{item.name}</span>
+                  {item.originalName ? (
+                    <span className="font-normal">({item.originalName})</span>
+                  ) : null}
+                </Tag>
               </Link>
             </li>
           ))}
         </ul>
       ) : null}
       <header className="flex flex-col gap-section lg:flex-row">
-        <div className="w-full max-w-sm shrink-0">
-          {product.images.length > 0 ? (
+        {product.images.length > 0 ? (
+          <div className="w-full max-w-sm shrink-0">
             <ImagePreview
               images={product.images}
               alt={t("imageAlt", { name: product.name })}
               className="h-80 w-full rounded-surface bg-surface"
               thumbnails
             />
-          ) : (
-            <div className="flex h-80 items-center justify-center rounded-surface bg-surface-muted text-label text-foreground-muted">
-              {t("imageUnavailable")}
-            </div>
-          )}
-        </div>
+          </div>
+        ) : null}
 
         <div className="min-w-0 flex-1">
           <h1 className="break-words text-heading font-bold tracking-tight text-foreground">
@@ -150,15 +174,28 @@ export function ProductDetail({
               {t("translationUnavailable")}
             </p>
           ) : null}
-          {price ? (
-            <p className="mt-copy-gap text-heading font-bold text-brand-red">
-              {price}
-            </p>
-          ) : null}
+          <div className="mt-copy-gap flex flex-wrap items-center gap-3">
+            {price ? (
+              <p className="text-heading font-bold text-brand-red">{price}</p>
+            ) : null}
+            <a
+              href={`https://www.chemistwarehouse.co.nz/buy/${product.sid}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="focus-ring text-label text-brand-blue underline underline-offset-2 hover:text-brand-blue-hover"
+            >
+              {t("buy")}
+            </a>
+          </div>
           {product.isPrescription ? (
-            <p className="mt-control-gap inline-flex rounded-pill bg-warning-background px-3 py-1 text-label font-semibold text-warning-foreground">
-              {t("prescription")}
-            </p>
+            <div className="mt-control-gap">
+              <p className="inline-flex rounded-pill bg-warning-background px-3 py-1 text-label font-semibold text-warning-foreground">
+                {t("prescription")}
+              </p>
+              <p className="mt-2 text-label text-brand-red">
+                {t("prescriptionShipping")}
+              </p>
+            </div>
           ) : null}
 
           {product.supplier ? (
@@ -193,29 +230,41 @@ export function ProductDetail({
           {product.additionalInfoOriginal ||
           product.keyFeaturesOriginal ||
           product.attributesOriginal ? (
-            <div className="mt-section border-t border-separator pt-copy-gap text-sm leading-5 text-foreground-muted">
-              {product.additionalInfoOriginal ? (
-                <section className="mt-copy-gap">
-                  <FactList items={product.additionalInfoOriginal} />
-                </section>
-              ) : null}
-              {product.keyFeaturesOriginal ? (
-                <section className="mt-copy-gap">
-                  <FactList items={product.keyFeaturesOriginal} />
-                </section>
-              ) : null}
-              {product.attributesOriginal ? (
-                <section className="mt-copy-gap">
-                  <AttributeList items={product.attributesOriginal} />
-                </section>
-              ) : null}
-            </div>
+            <OriginalBlock>
+              <div className="text-sm leading-5 text-foreground-muted flex flex-col gap-copy-gap">
+                {product.additionalInfoOriginal ? (
+                  <section>
+                    <FactList items={product.additionalInfoOriginal} />
+                  </section>
+                ) : null}
+                {product.keyFeaturesOriginal ? (
+                  <section>
+                    <FactList items={product.keyFeaturesOriginal} />
+                  </section>
+                ) : null}
+                {product.attributesOriginal ? (
+                  <section>
+                    <AttributeList items={product.attributesOriginal} />
+                  </section>
+                ) : null}
+              </div>
+            </OriginalBlock>
           ) : null}
         </div>
       </header>
 
-      {product.sections.length > 0 ? (
+      {product.isPrescription || product.sections.length > 0 ? (
         <div className="mt-section divide-y divide-separator border-y border-separator">
+          {product.isPrescription ? (
+            <section className="py-copy-gap">
+              <h2 className="mb-2 text-base font-bold">
+                {t("prescriptionInformation.title")}
+              </h2>
+              <p className="text-body text-foreground">
+                {t("prescriptionInformation.content")}
+              </p>
+            </section>
+          ) : null}
           {product.sections.map((section) => (
             <section key={section.key} className="py-copy-gap">
               <div
@@ -223,10 +272,12 @@ export function ProductDetail({
                 dangerouslySetInnerHTML={{ __html: section.html }}
               />
               {section.originalHtml ? (
-                <div
-                  className={`${htmlClass} mt-2 text-sm leading-6 text-foreground-muted`}
-                  dangerouslySetInnerHTML={{ __html: section.originalHtml }}
-                />
+                <OriginalBlock>
+                  <div
+                    className={`${htmlClass} mt-2 text-sm leading-6 text-foreground-muted`}
+                    dangerouslySetInnerHTML={{ __html: section.originalHtml }}
+                  />
+                </OriginalBlock>
               ) : null}
             </section>
           ))}

@@ -19,8 +19,7 @@
   "Settings": {
     "title": "设置",
     "languageTitle": "语言",
-    "languageDescription": "更改应用界面语言。",
-    "placeholder": "更多设置稍后加入。"
+    "languageDescription": "更改应用界面语言。"
   },
   "Home": {
     "heading": "Chemist Warehouse 中文助手",
@@ -47,8 +46,15 @@
   },
   "Product": {
     "price": "价格",
+    "buy": "打开商品链接",
+    "viewOriginal": "查看原文",
     "supplier": "供应商",
     "prescription": "处方药",
+    "prescriptionShipping": "重要提示：发货前我们必须收到新西兰注册医生开具的处方。",
+    "prescriptionInformation": {
+      "title": "处方信息",
+      "content": "本品为处方药，供应须凭新西兰注册医生开具的处方。请咨询医生本品是否适合您。请务必阅读标签，并按说明使用。如果症状持续，请咨询医疗专业人员。药物既有风险也有益处，不当使用可能造成伤害。药剂师有权依据专业与法律义务拒绝供应。"
+    },
     "related": "相关商品",
     "imageAlt": "{name}的图片",
     "imageUnavailable": "暂无图片",

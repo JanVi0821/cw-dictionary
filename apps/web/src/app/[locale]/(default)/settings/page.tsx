@@ -43,7 +43,6 @@ export default async function SettingsPage() {
           </div>
           <LanguageSelector variant="settings" />
         </div>
-        <p className="text-body text-foreground-muted">{t("placeholder")}</p>
       </div>
     </section>
   );

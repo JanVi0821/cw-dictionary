@@ -19,8 +19,7 @@
   "Settings": {
     "title": "Settings",
     "languageTitle": "Language",
-    "languageDescription": "Choose the language used across the app.",
-    "placeholder": "More settings will be added later."
+    "languageDescription": "Choose the language used across the app."
   },
   "Home": {
     "heading": "Chemist Warehouse dictionary",
@@ -47,8 +46,15 @@
   },
   "Product": {
     "price": "Price",
+    "buy": "Open product link",
+    "viewOriginal": "View original",
     "supplier": "Supplier",
     "prescription": "Prescription",
+    "prescriptionShipping": "IMPORTANT NOTE: WE MUST RECEIVE A PRESCRIPTION FROM A NEW ZEALAND REGISTERED DOCTOR BEFORE THIS ITEM CAN BE SHIPPED.",
+    "prescriptionInformation": {
+      "title": "Prescription Information",
+      "content": "THIS IS A PRESCRIPTION MEDICINE AND SUPPLY REQUIRES A PRESCRIPTION FROM A NZ REGISTERED DOCTOR. ASK YOUR DOCTOR IF THIS MEDICINE IS RIGHT FOR YOU. ALWAYS READ THE LABEL. USE AS DIRECTED. IF SYMPTOMS PERSIST, SEE YOUR HEALTHCARE PROFESSIONAL. MEDICINES HAVE RISKS AND BENEFITS. INCORRECT USE MAY BE HARMFUL. THE PHARMACIST RESERVES THE RIGHT TO NOT SUPPLY IN LINE WITH OUR PROFESSIONAL AND LEGAL OBLIGATIONS."
+    },
     "related": "Related products",
     "imageAlt": "Photo of {name}",
     "imageUnavailable": "No photo",
