@@ -41,7 +41,7 @@ export default async function SettingsPage() {
               </p>
             </div>
           </div>
-          <LanguageSelector variant="settings" />
+          <LanguageSelector />
         </div>
       </div>
     </section>

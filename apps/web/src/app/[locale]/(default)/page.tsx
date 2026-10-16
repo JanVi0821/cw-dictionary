@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 import { CW_LOGO_URL } from "@/consts";
 import { SearchResults } from "./_components/SearchResults";
+import { SearchIcon } from "lucide-react";
+import { cn } from "cn";
 
 export async function generateMetadata({
   params,
@@ -70,8 +72,12 @@ export default async function HomePage({
         />
         <button
           type="submit"
-          className="focus-ring shrink-0 rounded-control bg-brand-red px-control-x text-label font-semibold text-primary-foreground hover:bg-brand-red-hover"
+          className={cn(
+            "focus-ring shrink-0 rounded-control bg-brand-red px-control-x text-label font-semibold text-primary-foreground hover:bg-brand-red-hover",
+            "flex gap-2 items-center cursor-pointer",
+          )}
         >
+          <SearchIcon />
           {t("searchSubmit")}
         </button>
       </form>
