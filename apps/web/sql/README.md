@@ -1,6 +1,6 @@
 # Catalogue search
 
-`catalog-search.sql` creates `public.search_catalog(p_query, p_locale, p_limit)` and four expression GIN indexes for name full-text search. It reuses the existing pg_trgm name indexes. Apply the file through Supabase SQL Editor when initializing another project; it is safe to reapply. The function and indexes have been deployed to the current project.
+`catalog-search.sql` creates `public.search_catalog(p_query, p_locale, p_limit)` and four expression GIN indexes for name full-text search. It reuses the existing pg_trgm name indexes. Apply the file through Supabase SQL Editor before deploying the matching application code; it is safe to reapply. The function is dropped and recreated within one transaction because its image return column changes to `images text[]`. Unexpected database dependencies cause the transaction to fail instead of being removed with CASCADE.
 
 The API uses the existing Publishable Key Supabase client and `rpc`, not a PostgreSQL connection or Secret Key. `SECURITY INVOKER` retains table RLS; only anon, authenticated and service_role receive explicit EXECUTE permission. No product or translation rows are modified by this deployment.
 
@@ -20,3 +20,10 @@ The application rejects queries over 120 Unicode characters with HTTP 400, retur
 Chinese currently uses literal substrings and explicit separated tokens, with trigram fallback for longer terms. This is not Chinese word segmentation or a synonym dictionary. Brand aliases, semantic ingredient synonyms and arbitrary spelling errors are not guaranteed matches. Neither PGroonga nor Elasticsearch is required by this implementation.
 
 The SQL function changes transaction-local trigram settings, so it is declared VOLATILE even though it only reads catalogue data; invoke it via the SDK's default POST RPC. Deployment leaves existing table policies and grants unchanged.
+
+## Request performance
+
+- One RPC returns all card data, including full product image arrays; there is no follow-up image request.
+- Exact token matches skip `word_similarity` evaluation. Candidate retrieval, fuzzy thresholds and ranking rules remain unchanged.
+- Ranking includes only names and scores; full image arrays are fetched after each result kind has been limited.
+- No cache or candidate truncation is introduced. Actual latency improvements require measurement on the deployed database.

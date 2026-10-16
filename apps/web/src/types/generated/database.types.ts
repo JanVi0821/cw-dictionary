@@ -155,7 +155,7 @@ export type Database = {
           id: string
           name: string
           original_name: string | null
-          image: string | null
+          images: string[]
           score: number
         }[]
       }

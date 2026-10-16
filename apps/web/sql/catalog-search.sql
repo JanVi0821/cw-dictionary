@@ -13,7 +13,10 @@ create index if not exists collections_name_fts_idx
 create index if not exists collection_translations_name_fts_idx
   on public.collection_translations using gin (to_tsvector('simple'::regconfig, name));
 
-create or replace function public.search_catalog(
+-- OUT columns change from image text to images text[]. Recreate atomically;
+-- do not CASCADE: unexpected database dependencies must fail the transaction.
+drop function if exists public.search_catalog(text, text, integer);
+create function public.search_catalog(
   p_query text,
   p_locale text default 'en',
   p_limit integer default 20
@@ -23,7 +26,7 @@ returns table (
   id text,
   name text,
   original_name text,
-  image text,
+  images text[],
   score double precision
 )
 language plpgsql volatile security invoker
@@ -76,19 +79,27 @@ begin
     where n.search_name ilike any(v.patterns)
        or n.search_name %> any(v.fuzzy_terms)
        or to_tsvector('simple'::regconfig, n.search_name) @@ v.tsquery
-  ), per_token as (
+  ), token_matches as not materialized (
     select c.item_kind, c.item_id, t.token, t.allow_fuzzy,
-      bool_or(case
+      c.search_name,
+      case
         -- A query for 75 should not count 750 as an exact dosage match.
         when t.token ~ '^[0-9]+$'
           then c.search_name ~* ('(^|[^0-9])' || t.token || '([^0-9]|$)')
         when t.token ~ '[0-9]'
           then c.search_name ~* ('(^|[^[:alnum:]])' || t.token || '([^[:alnum:]]|$)')
         else c.search_name ilike ('%' || t.token || '%')
-      end) as exact_token,
-      max(case when t.allow_fuzzy then word_similarity(t.token, c.search_name) else 0 end) as fuzzy_score
+      end as exact_token
     from candidates c cross join tokens t
-    group by c.item_kind, c.item_id, t.token, t.allow_fuzzy
+  ), per_token as (
+    select m.item_kind, m.item_id, m.token, m.allow_fuzzy,
+      bool_or(m.exact_token) as exact_token,
+      -- Exact matches already receive 1.0; do not calculate their similarity.
+      max(case when m.exact_token then 1.0
+        when m.allow_fuzzy then word_similarity(m.token, m.search_name)
+        else 0 end) as fuzzy_score
+    from token_matches m
+    group by m.item_kind, m.item_id, m.token, m.allow_fuzzy
   ), token_scores as (
     select t.item_kind, t.item_id,
       bool_and(t.exact_token) as all_exact,
@@ -110,22 +121,27 @@ begin
   ), labels as (
     select s.item_kind, s.item_id, coalesce(t.name, p.name) as display_name,
       case when t.name is not null and t.name <> p.name then p.name end as english_name,
-      p.images[1] as display_image, s.item_score
+      s.item_score
     from scores s join public.products p on s.item_kind='product' and p.sid=s.item_id
       left join public.product_translations t on t.sid=p.sid and t.locale=p_locale
     union all
     select s.item_kind, s.item_id, coalesce(t.name, c.name),
       case when t.name is not null and t.name <> c.name then c.name end,
-      null::text, s.item_score
+      s.item_score
     from scores s join public.collections c on s.item_kind='collection' and c.collection_id::text=s.item_id
       left join public.collection_translations t on t.collection_id=c.collection_id and t.locale=p_locale
   ), ranked as (
     select l.*, row_number() over (partition by l.item_kind
       order by l.item_score desc, char_length(l.display_name), l.item_id) as position
     from labels l
+  ), limited as materialized (
+    select r.* from ranked r where r.position <= p_limit
   )
-  select r.item_kind, r.item_id, r.display_name, r.english_name, r.display_image, r.item_score
-    from ranked r where r.position <= p_limit
+  -- Fetch full image arrays only for the final results, preserving previews.
+  select r.item_kind, r.item_id, r.display_name, r.english_name,
+      coalesce(p.images, array[]::text[]), r.item_score
+    from limited r left join public.products p
+      on r.item_kind = 'product' and p.sid = r.item_id
     order by r.item_kind, r.position;
 end;
 $function$;

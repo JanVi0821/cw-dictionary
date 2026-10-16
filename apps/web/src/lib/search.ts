@@ -48,24 +48,13 @@ export async function searchCatalog(query: string, locale: AppLocale) {
     })
     .abortSignal(AbortSignal.timeout(REQUEST_TIMEOUT_MS));
   if (error) throw error;
-  const productIds = (data ?? []).flatMap((row) => row.kind === "product" ? [row.id] : []);
-  const imagesById = new Map<string, string[]>();
-  if (productIds.length > 0) {
-    const pictures = await supabase
-      .from("products")
-      .select("sid, images")
-      .in("sid", productIds)
-      .abortSignal(AbortSignal.timeout(REQUEST_TIMEOUT_MS));
-    if (pictures.error) throw pictures.error;
-    for (const picture of pictures.data ?? []) imagesById.set(picture.sid, picture.images ?? []);
-  }
   const collections: ProductCardItem[] = [];
   const products: ProductCardItem[] = [];
   for (const row of data ?? []) {
     if (row.kind === "collection")
       collections.push(toCard(row, `/explore/${row.id}`, []));
     else if (row.kind === "product")
-      products.push(toCard(row, `/product/${row.id}`, imagesById.get(row.id) ?? []));
+      products.push(toCard(row, `/product/${row.id}`, row.images));
   }
   return { collections, products, tooShort: false };
 }
