@@ -1,3 +1,4 @@
+@import "@douyinfe/semi-ui-19/dist/css/semi.min.css";
 @import "tailwindcss";
 @import "./theme.css";
 @import "tw-animate-css";
@@ -20,13 +21,25 @@
     background: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    caret-color: var(--color-brand-blue);
+  }
+
+  ::selection {
+    background: var(--color-brand-yellow);
+    color: var(--color-brand-blue-hover);
   }
 }
 
 @layer components {
   .focus-ring:focus-visible {
-    outline: var(--spacing-focus-ring) solid var(--color-primary);
+    outline: var(--spacing-focus-ring) solid var(--color-brand-blue);
     outline-offset: var(--spacing-focus-offset);
+  }
+
+  header .focus-ring:focus-visible,
+  .mobile-bottom-nav .focus-ring:focus-visible,
+  button.focus-ring:focus-visible {
+    outline-color: var(--color-brand-yellow);
   }
 
   .mobile-bottom-nav {
@@ -37,5 +50,10 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-surface);
     background: var(--color-surface);
+  }
+
+  .semi-image-preview-image-img {
+    max-width: none;
+    max-height: none;
   }
 }

@@ -1,10 +1,10 @@
 {
   "Metadata": {
-    "title": "CW 词典",
-    "description": "浏览 Chemist Warehouse 商品及中文翻译。"
+    "title": "CW 中文助手",
+    "description": "浏览 Chemist Warehouse 中译商品"
   },
   "Brand": {
-    "name": "CW 词典"
+    "name": "CW Dictionary"
   },
   "Navigation": {
     "search": "搜索",
@@ -23,13 +23,14 @@
     "placeholder": "更多设置稍后加入。"
   },
   "Home": {
-    "heading": "Chemist Warehouse 词典",
-    "description": "搜索商品，浏览分类。",
-    "searchPlaceholder": "搜索商品和分类",
+    "heading": "Chemist Warehouse 中文助手",
+    "description": "搜索商品，浏览分类",
+    "searchPlaceholder": "搜索商品/分类",
     "searchSubmit": "搜索",
     "searchFailed": "搜索失败，请稍后重试。",
     "queryTooShort": "请至少输入 2 个字符。",
     "collectionsHeading": "分类",
+    "enterCollection": "进入分类",
     "collectionsEmpty": "没有匹配的分类。",
     "productsHeading": "商品",
     "productsEmpty": "没有匹配的商品。"
@@ -43,5 +44,21 @@
   },
   "Collection": {
     "productsEmpty": "该分类下暂无商品。"
+  },
+  "Product": {
+    "price": "价格",
+    "supplier": "供应商",
+    "prescription": "处方药",
+    "related": "相关商品",
+    "imageAlt": "{name}的图片",
+    "imageUnavailable": "暂无图片",
+    "translationUnavailable": "暂无中文翻译，以下为英文原文。"
+  },
+  "ImagePreview": {
+    "details": "查看详情",
+    "enlarge": "查看大图",
+    "close": "关闭",
+    "previous": "上一张",
+    "next": "下一张"
   }
 }

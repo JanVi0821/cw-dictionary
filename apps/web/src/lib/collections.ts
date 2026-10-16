@@ -5,12 +5,14 @@ import { routing } from "@/i18n/routing";
 export type CollectionListItem = {
   collectionId: number;
   name: string;
+  originalName: string | null;
   hasChildren: boolean;
 };
 
 type NamedCollection = {
   collection_id: number;
   name: string;
+  originalName: string | null;
 };
 
 async function namedCollections(
@@ -24,7 +26,11 @@ async function namedCollections(
     : query.eq("parent_id", parentId).order("name"));
   if (error) throw error;
 
-  const rows = (data ?? []) as NamedCollection[];
+  const rows = (data ?? []).map((row) => ({
+    collection_id: row.collection_id,
+    name: row.name,
+    originalName: null,
+  }));
   if (locale === routing.defaultLocale || rows.length === 0) return rows;
 
   const { data: translations, error: translationError } = await client
@@ -38,16 +44,20 @@ async function namedCollections(
   if (translationError) throw translationError;
 
   const names = new Map(
-    (translations ?? []).map((row: NamedCollection) => [
+    (translations ?? []).map((row) => [
       row.collection_id,
       row.name,
     ]),
   );
 
-  return rows.map((row) => ({
-    ...row,
-    name: names.get(row.collection_id) ?? row.name,
-  }));
+  return rows.map((row) => {
+    const translated = names.get(row.collection_id);
+    return {
+      ...row,
+      name: translated ?? row.name,
+      originalName: translated && translated !== row.name ? row.name : null,
+    };
+  });
 }
 
 export async function listCollectionChildren(
@@ -74,6 +84,7 @@ export async function listCollectionChildren(
   return rows.map((row) => ({
     collectionId: row.collection_id,
     name: row.name,
+    originalName: row.originalName,
     hasChildren: parents.has(row.collection_id),
   }));
 }
@@ -83,22 +94,29 @@ export async function getCollectionName(
   collectionId: number,
   locale: string,
 ) {
-  if (locale !== routing.defaultLocale) {
-    const { data, error } = await client
-      .from("collection_translations")
-      .select("name")
-      .eq("collection_id", collectionId)
-      .eq("locale", locale)
-      .maybeSingle();
-    if (error) throw error;
-    if (data?.name) return data.name as string;
-  }
-
   const { data, error } = await client
     .from("collections")
     .select("name")
     .eq("collection_id", collectionId)
     .maybeSingle();
   if (error) throw error;
-  return (data?.name as string | undefined) ?? null;
+  if (!data?.name) return null;
+
+  if (locale === routing.defaultLocale) {
+    return { name: data.name, originalName: null };
+  }
+
+  const { data: translation, error: translationError } = await client
+    .from("collection_translations")
+    .select("name")
+    .eq("collection_id", collectionId)
+    .eq("locale", locale)
+    .maybeSingle();
+  if (translationError) throw translationError;
+
+  const translated = translation?.name;
+  if (!translated || translated === data.name) {
+    return { name: data.name, originalName: null };
+  }
+  return { name: translated, originalName: data.name };
 }

@@ -12,7 +12,7 @@ export async function DesktopNavigation() {
           <li key={href} className="shrink-0">
             <Link
               href={href}
-              className="focus-ring flex min-h-touch shrink-0 items-center gap-control-gap whitespace-nowrap rounded-pill px-control-x text-label font-semibold text-foreground-muted hover:text-foreground"
+              className="focus-ring flex min-h-touch shrink-0 items-center gap-control-gap whitespace-nowrap rounded-pill px-control-x text-label font-semibold text-on-primary-muted hover:text-brand-yellow"
             >
               <Icon className="size-nav-icon shrink-0" aria-hidden="true" />
               <span>{t(label)}</span>

@@ -1,5 +1,5 @@
 import { routing, type AppLocale } from "@/i18n/routing";
-import { searchCatalog } from "@/lib/search";
+import { MAX_SEARCH_LENGTH, searchCatalog } from "@/lib/search";
 
 const LOCALES = new Set<string>(routing.locales);
 
@@ -10,6 +10,9 @@ export async function GET(request: Request) {
 
   if (!LOCALES.has(locale)) {
     return Response.json({ error: "Invalid locale" }, { status: 400 });
+  }
+  if (Array.from(query.normalize("NFKC").trim()).length > MAX_SEARCH_LENGTH) {
+    return Response.json({ error: "Search query too long" }, { status: 400 });
   }
 
   try {

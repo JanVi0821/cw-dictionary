@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
+import { CW_LOGO_URL } from "@/consts";
 import { SearchResults } from "./_components/SearchResults";
 
 export async function generateMetadata({
@@ -28,22 +29,26 @@ export default async function HomePage({
       className={
         searching
           ? "mx-auto w-full max-w-content px-page-x py-section pb-bottom-nav lg:pb-section"
-          : "mx-auto flex min-h-home w-full max-w-content flex-col items-center justify-center gap-section px-page-x pb-bottom-nav pt-section lg:pb-section"
+          : "mx-auto flex min-h-home w-full max-w-content flex-col items-center justify-start gap-section px-page-x pb-bottom-nav pt-12 lg:pb-section"
       }
       aria-labelledby="home-heading"
     >
-      <div className={searching ? "w-full" : "w-full max-w-reading text-center"}>
+      <div
+        className={
+          searching
+            ? "w-full"
+            : "w-full max-w-reading text-center flex flex-col gap-4 items-center"
+        }
+      >
+        {!searching && (
+          <img src={CW_LOGO_URL} alt="" className="h-auto w-full max-w-36" />
+        )}
         <h1
           id="home-heading"
           className="text-display font-bold tracking-tight text-foreground"
         >
           {t("heading")}
         </h1>
-        {!searching && (
-          <p className="mt-copy-gap text-body text-foreground-muted">
-            {t("description")}
-          </p>
-        )}
       </div>
       <form
         className={
@@ -61,11 +66,11 @@ export default async function HomePage({
           type="search"
           defaultValue={query}
           placeholder={t("searchPlaceholder")}
-          className="focus-ring min-w-0 flex-1 rounded-control border border-border bg-surface px-control-x py-3 text-body shadow-control"
+          className="focus-ring min-w-0 flex-1 rounded-control border border-border bg-surface px-control-x py-3 text-body text-foreground shadow-control"
         />
         <button
           type="submit"
-          className="focus-ring shrink-0 rounded-control bg-primary px-control-x text-label font-semibold text-primary-foreground"
+          className="focus-ring shrink-0 rounded-control bg-brand-red px-control-x text-label font-semibold text-primary-foreground hover:bg-brand-red-hover"
         >
           {t("searchSubmit")}
         </button>

@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, LoaderCircle } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import {
   Collapsible,
@@ -52,14 +52,24 @@ function CollectionNode({
         depth > 0 && "text-label font-medium",
       )}
     >
-      <span className="truncate">{node.name}</span>
+      <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+        <span>{node.name}</span>
+        {node.originalName ? (
+          <span className="text-sm font-normal text-foreground-muted">
+            {node.originalName}
+          </span>
+        ) : null}
+      </span>
     </Link>
   );
 
   if (!node.hasChildren) {
     return (
       <li
-        className={cn("border-t border-border", depth === 0 && "first:border-t-0")}
+        className={cn(
+          "border-t border-brand-blue/20",
+          depth === 0 && "first:border-t-0",
+        )}
       >
         <div
           className="flex items-center pr-control-x hover:bg-surface-muted"
@@ -75,7 +85,10 @@ function CollectionNode({
 
   return (
     <li
-      className={cn("border-t border-border", depth === 0 && "first:border-t-0")}
+      className={cn(
+        "border-t border-brand-blue/20",
+        depth === 0 && "first:border-t-0",
+      )}
     >
       <Collapsible open={open} onOpenChange={setOpen}>
         <div
@@ -86,10 +99,16 @@ function CollectionNode({
         >
           <CollapsibleTrigger
             aria-label={copy.expand}
-            className="group focus-ring grid size-touch shrink-0 place-items-center text-foreground-muted hover:text-foreground"
+            className="cursor-pointer group focus-ring grid size-touch shrink-0 place-items-center text-foreground-muted hover:text-foreground"
           >
             <ChevronRight
-              className="size-nav-icon transition-transform duration-150 ease-out group-data-[state=open]:rotate-90 motion-reduce:transition-none"
+              className={cn(
+                "transition-transform duration-150 ease-out group-data-[state=open]:rotate-90 motion-reduce:transition-none",
+                {
+                  "size-nav-icon": depth === 0,
+                  "size-4": depth > 0,
+                },
+              )}
               aria-hidden="true"
             />
           </CollapsibleTrigger>
@@ -97,7 +116,9 @@ function CollectionNode({
         </div>
         <CollapsibleContent>
           {children.isError ? (
-            <p className="px-control-x py-2 text-label text-danger">{copy.loadFailed}</p>
+            <p className="px-control-x py-2 text-label text-danger">
+              {copy.loadFailed}
+            </p>
           ) : children.data ? (
             <CollectionNodes
               copy={copy}
@@ -106,9 +127,16 @@ function CollectionNode({
               nodes={children.data}
             />
           ) : (
-            <p className="px-control-x py-2 text-label text-foreground-muted">
-              {copy.loading}
-            </p>
+            <div
+              className="grid h-touch place-items-center text-foreground-muted"
+              role="status"
+              aria-label={copy.loading}
+            >
+              <LoaderCircle
+                className="size-nav-icon animate-spin"
+                aria-hidden="true"
+              />
+            </div>
           )}
         </CollapsibleContent>
       </Collapsible>
@@ -152,7 +180,7 @@ export function CollectionTreeView({
   nodes: CollectionListItem[];
 }) {
   return (
-    <div className="mt-control-gap overflow-hidden rounded-control border border-border bg-surface">
+    <div className="mt-control-gap overflow-hidden rounded-control shadow-sm shadow-brand-blue/30 bg-surface">
       <CollectionNodes copy={copy} depth={0} locale={locale} nodes={nodes} />
     </div>
   );

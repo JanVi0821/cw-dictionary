@@ -44,8 +44,8 @@ export function LanguageSelector({
           aria-labelledby={isSettings ? "settings-language-title" : undefined}
           className={
             isSettings
-              ? "focus-ring min-h-12 w-full bg-surface px-3 text-body font-medium shadow-control"
-              : "focus-ring h-auto min-h-touch w-auto min-w-max bg-surface px-2 text-xs font-medium shadow-control sm:px-3 sm:text-label"
+              ? "focus-ring min-h-12 w-full bg-surface px-3 text-body font-medium text-foreground shadow-control"
+              : "focus-ring h-auto min-h-touch w-auto min-w-max bg-surface px-2 text-xs font-medium text-foreground shadow-control sm:px-3 sm:text-label"
           }
           aria-busy={isPending}
         >

@@ -30,6 +30,7 @@
     "searchFailed": "Couldn't search right now. Please try again.",
     "queryTooShort": "Enter at least 2 characters.",
     "collectionsHeading": "Collections",
+    "enterCollection": "Open collection",
     "collectionsEmpty": "No matching collections.",
     "productsHeading": "Products",
     "productsEmpty": "No matching products."
@@ -43,5 +44,21 @@
   },
   "Collection": {
     "productsEmpty": "No products in this collection."
+  },
+  "Product": {
+    "price": "Price",
+    "supplier": "Supplier",
+    "prescription": "Prescription",
+    "related": "Related products",
+    "imageAlt": "Photo of {name}",
+    "imageUnavailable": "No photo",
+    "translationUnavailable": "Chinese translation is not available yet. English is shown."
+  },
+  "ImagePreview": {
+    "details": "View details",
+    "enlarge": "View larger",
+    "close": "Close",
+    "previous": "Previous image",
+    "next": "Next image"
   }
 }

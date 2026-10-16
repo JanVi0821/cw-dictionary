@@ -34,7 +34,7 @@ export default async function ExplorePage() {
           {t("title")}
         </h1>
         {failed ? (
-          <p className="mt-copy-gap text-body text-danger" role="alert">
+          <p className="mt-copy-gap rounded-control bg-danger-background px-3 py-2 text-body text-danger-foreground" role="alert">
             {t("loadFailed")}
           </p>
         ) : nodes && nodes.length === 0 ? (

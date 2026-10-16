@@ -11,6 +11,7 @@ This block is written and re-added by `turbo` before repository-scoped commands 
 
 # Frontend conventions
 
+- Prefer `@douyinfe/semi-ui-19` for UI. When Semi already has a component for the interaction, use that component instead of building one.
 - Reuse compatible third-party components and libraries instead of rebuilding them.
 - Use the existing icon library first; keep custom SVG icons in the shared icon directory and out of business code.
 - Maintain shared `hooks`, `components`, `utils`, `layouts`, and `styles` modules under `src/`.

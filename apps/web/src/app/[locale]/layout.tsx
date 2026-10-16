@@ -22,7 +22,7 @@ export async function generateMetadata({
     },
     description: t("description"),
     icons: {
-      icon: "/favicon.svg",
+      icon: "/favicon.png",
     },
   };
 }
