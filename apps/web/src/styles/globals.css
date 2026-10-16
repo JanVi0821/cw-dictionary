@@ -1,4 +1,4 @@
-@import "@douyinfe/semi-ui-19/dist/css/semi.min.css";
+@import "../../node_modules/@douyinfe/semi-ui-19/dist/css/semi.min.css";
 @import "tailwindcss";
 @import "./theme.css";
 @import "tw-animate-css";
