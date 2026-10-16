@@ -13,8 +13,13 @@ export default defineConfig({
     ...cache,
     name: WORKER_NAME,
     entrypoint: "vinext/server/fetch-handler",
-    compatibilityDate: "2026-10-14",
+    compatibilityDate: "2026-10-16",
     compatibilityFlags: ["nodejs_compat", "global_fetch_strictly_public"],
+    workersDev: false,
+    previewUrls: false,
+    observability: {
+      issues: { enabled: true },
+    },
     assets: { notFoundHandling: "none" },
     env: {
       ...cache.env,
