@@ -23,7 +23,7 @@ The SQL function changes transaction-local trigram settings, so it is declared V
 
 ## Request performance
 
-- One RPC returns all card data, including full product image arrays; there is no follow-up image request.
+- The RPC returns all card data, including full product `images` arrays, in one request. The application requires this return format; apply the SQL before deploying the application code.
 - Exact token matches skip `word_similarity` evaluation. Candidate retrieval, fuzzy thresholds and ranking rules remain unchanged.
 - Ranking includes only names and scores; full image arrays are fetched after each result kind has been limited.
 - No cache or candidate truncation is introduced. Actual latency improvements require measurement on the deployed database.

@@ -25,8 +25,8 @@ export function ImagePreview({
   const [visible, setVisible] = useState(false);
   const imageKey = images.join("\n");
   const current = images.length === 0 ? 0 : Math.min(index, images.length - 1);
-  const src = images[current];
   const showThumbs = thumbnails && images.length > 1;
+  const src = images[thumbnails ? current : 0];
 
   useEffect(() => {
     setIndex(0);
@@ -43,7 +43,10 @@ export function ImagePreview({
           "focus-ring block w-full cursor-zoom-in overflow-hidden",
           className,
         )}
-        onClick={() => setVisible(true)}
+        onClick={() => {
+          if (!thumbnails) setIndex(0);
+          setVisible(true);
+        }}
       >
         <img src={src} alt={alt} className="size-full object-contain" />
       </button>
