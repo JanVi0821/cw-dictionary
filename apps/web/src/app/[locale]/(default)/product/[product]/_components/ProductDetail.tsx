@@ -18,6 +18,7 @@ import {
   type ProductNameRows,
   type ProductTranslationRecord,
 } from "@/lib/products";
+import { cn } from "cn";
 
 const htmlClass =
   "text-body text-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-bold [&_img]:my-2 [&_img]:max-w-full [&_li]:ml-5 [&_ol]:list-decimal [&_p+p]:mt-2 [&_table]:w-full [&_td]:border [&_td]:border-separator [&_td]:px-2 [&_td]:py-1 [&_ul]:list-disc";
@@ -137,7 +138,10 @@ export function ProductDetail({
                   <span className="min-w-0 truncate">
                     {item.name}
                     {item.originalName ? (
-                      <span className="font-normal"> ({item.originalName})</span>
+                      <span className="font-normal">
+                        {" "}
+                        ({item.originalName})
+                      </span>
                     ) : null}
                   </span>
                 </Tag>
@@ -197,7 +201,14 @@ export function ProductDetail({
           ) : null}
 
           {product.supplier ? (
-            <dl className="mt-copy-gap border-y border-separator py-copy-gap text-label">
+            <dl
+              className={cn("mt-copy-gap py-copy-gap text-label", {
+                "border-y border-separator":
+                  product.attributes.length > 0 ||
+                  product.additionalInfo.length > 0 ||
+                  product.keyFeatures.length > 0,
+              })}
+            >
               <div>
                 <dt className="font-semibold text-foreground-muted">
                   {t("supplier")}
