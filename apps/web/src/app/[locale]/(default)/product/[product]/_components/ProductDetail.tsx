@@ -18,7 +18,6 @@ import {
   type ProductNameRows,
   type ProductTranslationRecord,
 } from "@/lib/products";
-import { cn } from "cn";
 
 const htmlClass =
   "text-body text-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-bold [&_img]:my-2 [&_img]:max-w-full [&_li]:ml-5 [&_ol]:list-decimal [&_p+p]:mt-2 [&_table]:w-full [&_td]:border [&_td]:border-separator [&_td]:px-2 [&_td]:py-1 [&_ul]:list-disc";
@@ -126,22 +125,21 @@ export function ProductDetail({
       {product.categories.length > 0 ? (
         <ul className="mb-section flex flex-wrap gap-2">
           {product.categories.map((item) => (
-            <li key={item.id}>
+            <li key={item.id} className="max-w-full min-w-0">
               <Link
                 href={item.href}
-                className="focus-ring inline-flex max-w-full"
+                className="focus-ring inline-flex max-w-full min-w-0"
               >
                 <Tag
                   color={tagColor(item.name)}
-                  className={cn(
-                    "max-w-full flex gap-2 !h-6 underline",
-                    "whitespace-pre",
-                  )}
+                  className="max-w-full min-w-0 !h-6 underline [&_.semi-tag-content]:!min-w-0 [&_.semi-tag-content]:!overflow-hidden"
                 >
-                  <span>{item.name}</span>
-                  {item.originalName ? (
-                    <span className="font-normal">({item.originalName})</span>
-                  ) : null}
+                  <span className="min-w-0 truncate">
+                    {item.name}
+                    {item.originalName ? (
+                      <span className="font-normal"> ({item.originalName})</span>
+                    ) : null}
+                  </span>
                 </Tag>
               </Link>
             </li>

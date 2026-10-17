@@ -13,6 +13,13 @@ function reportCacheError(error: unknown, stage: "match" | "put", request: Reque
   });
 }
 
+export function cacheRequest(request: Request, params: Record<string, string>) {
+  const url = new URL(request.url);
+  url.search = "";
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  return new Request(url, { method: "GET" });
+}
+
 export async function withCache(request: Request, load: () => Promise<Response>) {
   const cache = cacheStorage();
   const cacheable = cache !== undefined && request.method === "GET";
