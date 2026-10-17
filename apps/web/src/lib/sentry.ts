@@ -1,6 +1,7 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
+import { getRequestExecutionContext } from "vinext/shims/request-context";
 
 function redact(value: string, secrets: string[]) {
   return secrets.reduce((text, secret) => text.replaceAll(secret, "[redacted]"), value);
@@ -25,7 +26,10 @@ export async function captureError(
       tags: context.tags,
       extra: context.extra,
     });
-    await Sentry.flush(2000);
+    const flush = Sentry.flush(2000).catch((reportError) => {
+      console.error(reportError);
+    });
+    getRequestExecutionContext()?.waitUntil(flush);
   } catch (reportError) {
     console.error(reportError);
   }
