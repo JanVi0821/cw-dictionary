@@ -17,6 +17,7 @@ export default defineConfig({
     compatibilityFlags: ["nodejs_compat", "global_fetch_strictly_public"],
     workersDev: false,
     previewUrls: false,
+    domains: ["cw-dictionary.jan0821.com"],
     observability: {
       issues: { enabled: true },
     },
