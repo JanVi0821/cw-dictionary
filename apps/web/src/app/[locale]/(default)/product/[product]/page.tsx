@@ -5,11 +5,14 @@ import { GET as getProduct } from "@/app/api/products/[sid]/route";
 import type { ProductRecord, ProductTranslationRecord } from "@/lib/products";
 import { ProductDetail } from "./_components/ProductDetail";
 
+export const revalidate = 60 * 60 * 24;
 const SID_PATTERN = /^\d+$/;
 
 const loadProduct = cache(async (sid: string, locale: string) => {
   const response = await getProduct(
-    new Request(`http://internal/api/products/${sid}?locale=${encodeURIComponent(locale)}`),
+    new Request(
+      `http://internal/api/products/${sid}?locale=${encodeURIComponent(locale)}`,
+    ),
     { params: Promise.resolve({ sid }) },
   );
   if (response.status === 404) return null;
@@ -42,7 +45,11 @@ export default async function ProductPage({
   return (
     <section className="min-h-home bg-background pb-bottom-nav lg:pb-section">
       <div className="mx-auto w-full max-w-content px-page-x py-section">
-        <ProductDetail locale={locale} product={loaded.product} translation={loaded.translation} />
+        <ProductDetail
+          locale={locale}
+          product={loaded.product}
+          translation={loaded.translation}
+        />
       </div>
     </section>
   );

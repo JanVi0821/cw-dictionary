@@ -5,6 +5,7 @@ import { SearchResults } from "./_components/SearchResults";
 import { SearchIcon } from "lucide-react";
 import { cn } from "cn";
 
+export const revalidate = 60 * 60 * 24;
 export async function generateMetadata({
   params,
 }: PageProps<"/[locale]">): Promise<Metadata> {

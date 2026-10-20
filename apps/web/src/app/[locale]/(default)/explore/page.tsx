@@ -4,6 +4,7 @@ import { CollectionTreeView } from "./_components/CollectionTreeView";
 import { listCollectionChildren } from "@/lib/collections";
 import { supabase } from "@/lib/supabase/server";
 
+export const revalidate = 60 * 60 * 24;
 export async function generateMetadata({
   params,
 }: PageProps<"/[locale]/explore">): Promise<Metadata> {
@@ -34,11 +35,16 @@ export default async function ExplorePage() {
           {t("title")}
         </h1>
         {failed ? (
-          <p className="mt-copy-gap rounded-control bg-danger-background px-3 py-2 text-body text-danger-foreground" role="alert">
+          <p
+            className="mt-copy-gap rounded-control bg-danger-background px-3 py-2 text-body text-danger-foreground"
+            role="alert"
+          >
             {t("loadFailed")}
           </p>
         ) : nodes && nodes.length === 0 ? (
-          <p className="mt-copy-gap text-body text-foreground-muted">{t("empty")}</p>
+          <p className="mt-copy-gap text-body text-foreground-muted">
+            {t("empty")}
+          </p>
         ) : nodes ? (
           <CollectionTreeView
             copy={{

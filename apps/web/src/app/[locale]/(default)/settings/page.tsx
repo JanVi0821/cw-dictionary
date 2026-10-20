@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { Languages } from "lucide-react";
 import { LanguageSelector } from "@/layouts/LanguageSelector";
 
+export const revalidate = 60 * 60 * 24;
 export async function generateMetadata({
   params,
 }: PageProps<"/[locale]/settings">): Promise<Metadata> {
