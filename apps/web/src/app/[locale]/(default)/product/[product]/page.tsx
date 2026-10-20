@@ -6,8 +6,12 @@ import type { ProductRecord, ProductTranslationRecord } from "@/lib/products";
 import { ProductDetail } from "./_components/ProductDetail";
 
 export const revalidate = 60 * 60 * 24;
-const SID_PATTERN = /^\d+$/;
 
+export function generateStaticParams() {
+  return [];
+}
+
+const SID_PATTERN = /^\d+$/;
 const loadProduct = cache(async (sid: string, locale: string) => {
   const response = await getProduct(
     new Request(
